@@ -14,5 +14,12 @@ async def db_init():
         )
         await db.commit()
         
+async def get_tasks(user_id):
+    async with aiosqlite.connect(DB_FILE) as db:
+        tasks = await db.execute_fetchall(
+            "SELECT id, task, description, status FROM tasks where user_id = ?", (user_id,)
+        )
+        return tasks
+
 
 # TODO: tasks deletion daily or after finish?
