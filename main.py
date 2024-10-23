@@ -106,7 +106,7 @@ async def go_back_to_main_menu(message: Message):
 @dp.message(lambda message: message.text == "Toggle tasks descriptions")
 async def toggle_description(message: Message):
     new_setting = await toggle_description_optional(message.from_user.id)
-    status = "ON" if new_setting == 1 else "OFF"
+    status = "OFF" if new_setting == 1 else "ON"
     await message.answer(f"Descriptions are {status} now.")
 
 
