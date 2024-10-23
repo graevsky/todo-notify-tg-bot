@@ -16,7 +16,8 @@ startMenu = ReplyKeyboardMarkup(
 settingsMenu = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="Toggle tasks descriptions")
+            KeyboardButton(text="Toggle tasks descriptions"),
+            KeyboardButton(text="Toggle tasks reminder")
         ],
         [
          KeyboardButton(text="Back")]

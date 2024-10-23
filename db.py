@@ -2,6 +2,10 @@ import aiosqlite
 import asyncio
 import os
 from dotenv import load_dotenv
+from datetime import datetime
+import pytz
+
+
 
 load_dotenv()
 
@@ -52,20 +56,67 @@ async def get_user_settings(user_id):
 
 async def toggle_description_optional(user_id):
     async with aiosqlite.connect(DB_FILE) as db:
-        current_setting = await get_user_settings(user_id)['description_optional']
+        user_settings = await get_user_settings(user_id)
+        current_setting = user_settings['description_optional']
         new_setting = 1 if current_setting == 0 else 0
         await db.execute("UPDATE user_settings SET description_optional = ? WHERE user_id = ?", (new_setting, user_id))
         await db.commit()
         return new_setting
 
 
-async def toggle_reminder_optional(user_id, reminder_time=None):
+
+async def toggle_reminder_optional(user_id):
     async with aiosqlite.connect(DB_FILE) as db:
-        current_settings = await get_user_settings(user_id)['reminder_optional']
-        new_setting = 1 if current_settings == 0 else 0
-        await db.execute("UPDATE user_settings SET reminder_optional ?, reminder_time = ? WHERE user_id = ?", (new_setting, reminder_time, user_id))
-        await db.commit
+        settings = await get_user_settings(user_id)
+        current_setting = settings['reminder_optional']
+        
+        new_setting = 1 if current_setting == 0 else 0
+
+        await db.execute(
+            "UPDATE user_settings SET reminder_optional = ? WHERE user_id = ?",
+            (new_setting, user_id)
+        )
+        await db.commit()
         return new_setting
+
+
+async def update_reminder_time(user_id, reminder_time):
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute(
+            "UPDATE user_settings SET reminder_time = ? WHERE user_id = ?",
+            (reminder_time, user_id)
+        )
+        await db.commit()
+
+
+
+    
+
+async def reminder_scheduler(bot):
+    while True:
+        now = datetime.now(pytz.timezone('Europe/Moscow')).strftime("%H:%M")
+
+        async with aiosqlite.connect(DB_FILE) as db:
+            cursor = await db.execute(
+                "SELECT user_id FROM user_settings WHERE reminder_optional = 1 AND reminder_time = ?", 
+                (now,)
+            )
+            users = await cursor.fetchall()
+
+        if users:
+            for user in users:
+                user_id = user[0]
+                tasks = await get_tasks(user_id)
+                if tasks:
+                    await bot.send_message(user_id, "Your tasks for today:")
+                    for task in tasks:
+                        task_text = f"{task[1]} {'✅' if task[3] == 1 else '❌'}"
+                        await bot.send_message(user_id, task_text)
+       
+        
+        await asyncio.sleep(60)
+
+
 
 async def get_tasks(user_id):
     async with aiosqlite.connect(DB_FILE) as db:

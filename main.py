@@ -9,9 +9,10 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 import aiosqlite
 import asyncio
+import time
 
-from db import DB_FILE, db_init, get_tasks, task_deletion_scheduler, get_user_settings, toggle_description_optional
-from states import TaskStates
+from db import DB_FILE, db_init, get_tasks, task_deletion_scheduler, get_user_settings, toggle_description_optional, toggle_reminder_optional, reminder_scheduler, update_reminder_time
+from states import TaskStates, ReminderStates
 from menus import startMenu, settingsMenu
 
 load_dotenv()
@@ -39,7 +40,9 @@ async def init_add_task(message: Message, state: FSMContext):
 async def add_task_name(message: Message, state: FSMContext):
     await state.update_data(task_name=message.text)
 
-    description_optional = await get_user_settings(message.from_user.id)['description_optional']
+    user_settings = await get_user_settings(message.from_user.id)
+    description_optional = user_settings['description_optional']
+
 
 
     if description_optional: 
@@ -89,12 +92,44 @@ async def go_back_to_main_menu(message: Message):
     await message.answer("Menu:", reply_markup=startMenu)
 
 # description_setting
-@dp.message(Command("toggle description settings"))
+@dp.message(Command("toggle_description_settings"))
 @dp.message(lambda message: message.text == "Toggle tasks descriptions")
 async def toggle_description(message: Message):
     new_setting = await toggle_description_optional(message.from_user.id)
-    status = "OFF" if new_setting == 1 else "ON"
+    status = "ON" if new_setting == 1 else "OFF"
     await message.answer(f"Descriptions are {status} now.")
+
+
+# reminder_settings
+@dp.message(Command("toggle_reminder_settings"))
+@dp.message(lambda message: message.text == "Toggle tasks reminder")
+async def toggle_reminder(message: Message, state: FSMContext):
+    new_setting = await toggle_reminder_optional(message.from_user.id)
+    status = "ON" if new_setting == 1 else "OFF"
+    await message.answer(f"Reminder is {status} now.")
+    
+    if new_setting == 1:
+        await message.answer("Please send reminder time (HH:MM, Moscow time).")
+        await state.set_state(ReminderStates.waiting_for_reminder_time)
+
+
+
+@dp.message(ReminderStates.waiting_for_reminder_time)
+async def set_reminder_time(message: Message, state: FSMContext):
+    reminder_time = message.text
+
+    # time validation
+    try:
+        time.strptime(reminder_time, "%H:%M")
+    except ValueError:
+        await message.answer("Invalid format. Please send in HH:MM format.")
+        return
+
+    await update_reminder_time(message.from_user.id, reminder_time)
+    await message.answer(f"Reminder set for {reminder_time} daily.")
+    await state.clear()
+
+
 
 # show tasks
 @dp.message(Command("show_tasks"))
@@ -106,7 +141,9 @@ async def show_tasks(message: Message):
         await message.answer("You have no tasks yet.")
         return
 
-    description_optional = await get_user_settings(message.from_user.id)['description_optional']
+    user_settings = await get_user_settings(message.from_user.id)
+    description_optional = user_settings['description_optional']
+
 
 
     inline_keyboard = []
@@ -195,6 +232,7 @@ async def main():
     await on_startup()
     loop = asyncio.get_running_loop()
     loop.create_task(task_deletion_scheduler())
+    loop.create_task(reminder_scheduler(bot))
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
