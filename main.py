@@ -10,9 +10,9 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import aiosqlite
 import asyncio
 
-from db import DB_FILE, db_init, get_tasks, task_deletion_scheduler
+from db import DB_FILE, db_init, get_tasks, task_deletion_scheduler, get_user_settings, toggle_description_optional
 from states import TaskStates
-from startMenu import startMenu
+from menus import startMenu, settingsMenu
 
 load_dotenv()
 
@@ -38,8 +38,25 @@ async def init_add_task(message: Message, state: FSMContext):
 @dp.message(TaskStates.waiting_for_task_name)
 async def add_task_name(message: Message, state: FSMContext):
     await state.update_data(task_name=message.text)
-    await message.answer("Now send me description! Send '-' to skip this part.")
-    await state.set_state(TaskStates.waiting_for_task_description)
+
+    description_optional = await get_user_settings(message.from_user.id)
+
+    if description_optional: 
+        task_name = message.text
+
+        async with aiosqlite.connect(DB_FILE) as db:
+            await db.execute(
+                "INSERT INTO tasks (user_id, task, description) VALUES (?, ?, ?)",
+                (message.from_user.id, task_name, "") 
+            )
+            await db.commit()
+
+        await message.answer("Task added successfully!")
+        await state.clear()  
+    else:
+        await message.answer("Now send me description! Send '-' to skip this part.")
+        await state.set_state(TaskStates.waiting_for_task_description)
+
 
 
 @dp.message(TaskStates.waiting_for_task_description)
@@ -59,6 +76,19 @@ async def add_task_description(message: Message, state: FSMContext):
     await state.clear()
 
 
+# settings
+@dp.message(Command("settings"))
+@dp.message(lambda message: message.text == "Settings")
+async def show_settings(message: Message):
+    await message.answer("Settings:", reply_markup=settingsMenu)
+
+# description_setting
+@dp.message(Command("toggle description settings"))
+@dp.message(lambda message: message.text == "Toggle tasks descriptions")
+async def toggle_description(message: Message):
+    new_setting = await toggle_description_optional(message.from_user.id)
+    status = "OFF" if new_setting == 1 else "ON"
+    await message.answer(f"Descriptions are {status} now.")
 
 # show tasks
 @dp.message(Command("show_tasks"))
@@ -98,7 +128,7 @@ async def process_view_task(callback_query):
         task = await db.execute_fetchall("SELECT description FROM tasks WHERE id = ?", (task_id,))
     
     if task:
-        await callback_query.message.answer(task[0][0])
+        await callback_query.message.answer(f"Description: {task[0][0]}")
     else:
         await callback_query.message.answer("Task cannot be found.")
 

@@ -17,7 +17,31 @@ async def db_init():
         await db.execute(
             "CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, user_id INTEGER, task TEXT, description TEXT, status INTEGER DEFAULT 0)"
         )
+        await db.execute(
+            "CREATE TABLE IF NOT EXISTS user_settings (user_id INTEGER PRIMARY KEY, description_optional INTEGER DEFAULT 0)"
+        )
         await db.commit()
+
+
+async def get_user_settings(user_id):
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute("SELECT description_optional FROM user_settings WHERE user_id = ?", (user_id,))
+        settings = await cursor.fetchone()
+
+        if settings is None:
+            await db.execute("INSERT INTO user_settings (user_id, description_optional) VALUES (?, 0)", (user_id,))
+            await db.commit()
+            settings = (0,)  
+        return settings[0]
+
+async def toggle_description_optional(user_id):
+    async with aiosqlite.connect(DB_FILE) as db:
+        current_setting = await get_user_settings(user_id)
+        new_setting = 1 if current_setting == 0 else 0
+        await db.execute("UPDATE user_settings SET description_optional = ? WHERE user_id = ?", (new_setting, user_id))
+        await db.commit()
+        return new_setting
+
         
 async def get_tasks(user_id):
     async with aiosqlite.connect(DB_FILE) as db:
