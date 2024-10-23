@@ -17,6 +17,6 @@
 
 Для проекта используются:
 - Python
-- aiogram
+- aiogram 3
 - aiosqlite
 - asyncio
