@@ -130,8 +130,9 @@ async def get_tasks(user_id):
 
 
 async def task_deletion_scheduler():
-    await clear_tasks()
-    await asyncio.sleep(db_clear_period)
+    while True:
+        await clear_tasks()
+        await asyncio.sleep(db_clear_period)
 
 
 async def clear_tasks():
