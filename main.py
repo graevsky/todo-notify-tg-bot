@@ -218,7 +218,7 @@ async def process_complete_task(callback_query):
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[task_button, complete_button]])
 
-    await callback_query.message.edit_text(f"Your tasks:", reply_markup=keyboard)
+    await callback_query.message.edit_text("Your tasks:", reply_markup=keyboard)
     await callback_query.answer()
 
 

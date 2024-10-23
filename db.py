@@ -16,14 +16,17 @@ db_clear_period = int(os.getenv("DB_CLEAR_PERIOD"))
 async def db_init():
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, user_id INTEGER UNIQUE)"
+            """CREATE TABLE IF NOT EXISTS users 
+            (id INTEGER PRIMARY KEY, user_id INTEGER UNIQUE)"""
         )
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, user_id INTEGER, task TEXT, description TEXT, status INTEGER DEFAULT 0)"
+            """CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY,
+            user_id INTEGER, task TEXT, description TEXT, status INTEGER DEFAULT 0)"""
         )
         await db.execute(
             """
-            CREATE TABLE IF NOT EXISTS user_settings (user_id INTEGER PRIMARY KEY, description_optional INTEGER DEFAULT 0,
+            CREATE TABLE IF NOT EXISTS user_settings (user_id INTEGER PRIMARY KEY, 
+            description_optional INTEGER DEFAULT 0,
             reminder_optional INTEGER DEFAULT 0, reminder_time TEXT)
               """
         )
@@ -33,14 +36,17 @@ async def db_init():
 async def get_user_settings(user_id):
     async with aiosqlite.connect(DB_FILE) as db:
         cursor = await db.execute(
-            "SELECT description_optional, reminder_optional, reminder_time FROM user_settings WHERE user_id = ?",
+            """SELECT description_optional, reminder_optional,
+            reminder_time FROM user_settings WHERE user_id = ?""",
             (user_id,),
         )
         settings = await cursor.fetchone()
 
         if settings is None:
             await db.execute(
-                "INSERT INTO user_settings (user_id, description_optional, reminder_optional, reminder_time) VALUES (?, 0, 0, NULL)",
+                """INSERT INTO user_settings (user_id,
+                description_optional,reminder_optional,
+                reminder_time) VALUES (?, 0, 0, NULL)""",
                 (user_id,),
             )
             await db.commit()
@@ -95,7 +101,8 @@ async def reminder_scheduler(bot):
 
         async with aiosqlite.connect(DB_FILE) as db:
             cursor = await db.execute(
-                "SELECT user_id FROM user_settings WHERE reminder_optional = 1 AND reminder_time = ?",
+                """SELECT user_id FROM user_settings WHERE
+                reminder_optional = 1 AND reminder_time = ?""",
                 (now,),
             )
             users = await cursor.fetchall()
