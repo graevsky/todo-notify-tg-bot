@@ -39,7 +39,8 @@ async def init_add_task(message: Message, state: FSMContext):
 async def add_task_name(message: Message, state: FSMContext):
     await state.update_data(task_name=message.text)
 
-    description_optional = await get_user_settings(message.from_user.id)
+    description_optional = await get_user_settings(message.from_user.id)['description_optional']
+
 
     if description_optional: 
         task_name = message.text
@@ -105,7 +106,8 @@ async def show_tasks(message: Message):
         await message.answer("You have no tasks yet.")
         return
 
-    description_optional = await get_user_settings(message.from_user.id)
+    description_optional = await get_user_settings(message.from_user.id)['description_optional']
+
 
     inline_keyboard = []
 
