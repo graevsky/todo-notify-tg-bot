@@ -100,16 +100,25 @@ async def show_tasks(message: Message):
         await message.answer("You have no tasks yet.")
         return
 
+    description_optional = await get_user_settings(message.from_user.id)
+
     inline_keyboard = []
 
     for task in tasks:
         task_id, task_name, _, status = task
         status_emoji = "❌" if status == 0 else "✅"
 
-        task_button = InlineKeyboardButton(
-            text=f"{task_name}",
-            callback_data=f"view_{task_id}"
-        )
+        if description_optional:
+            task_button = InlineKeyboardButton(
+                text=f"{task_name}",
+                callback_data="no_action"
+            )
+        else:
+            task_button = InlineKeyboardButton(
+                text=f"{task_name}",
+                callback_data=f"view_{task_id}"
+            )
+
         complete_button = InlineKeyboardButton(
             text=status_emoji,
             callback_data=f"complete_{task_id}"
@@ -120,6 +129,8 @@ async def show_tasks(message: Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
     await message.answer("Your tasks:", reply_markup=keyboard)
+
+
 
 
 async def process_view_task(callback_query):
