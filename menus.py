@@ -17,7 +17,9 @@ settingsMenu = ReplyKeyboardMarkup(
     keyboard=[
         [
             KeyboardButton(text="Toggle tasks descriptions")
-        ]
+        ],
+        [
+         KeyboardButton(text="Back")]
     ],
     resize_keyboard=True,
     one_time_keyboard=False,

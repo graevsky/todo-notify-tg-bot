@@ -82,6 +82,11 @@ async def add_task_description(message: Message, state: FSMContext):
 async def show_settings(message: Message):
     await message.answer("Settings:", reply_markup=settingsMenu)
 
+@dp.message(Command("back"))
+@dp.message(lambda message: message.text == "Back")
+async def go_back_to_main_menu(message: Message):
+    await message.answer("Menu:", reply_markup=startMenu)
+
 # description_setting
 @dp.message(Command("toggle description settings"))
 @dp.message(lambda message: message.text == "Toggle tasks descriptions")
