@@ -10,7 +10,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import aiosqlite
 import asyncio
 
-from db import DB_FILE, db_init, get_tasks
+from db import DB_FILE, db_init, get_tasks, task_deletion_scheduler
 from states import TaskStates
 from startMenu import startMenu
 
@@ -20,6 +20,11 @@ load_dotenv()
 bot = Bot(token=os.getenv("TOKEN"))
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
+
+# start
+@dp.message(Command("start"))
+async def start_command(message: Message):
+    await message.answer("Menu:", reply_markup=startMenu)
 
 
 # add task
@@ -53,11 +58,6 @@ async def add_task_description(message: Message, state: FSMContext):
     await message.answer("Task added successfully!")
     await state.clear()
 
-
-# start
-@dp.message(Command("start"))
-async def start_command(message: Message):
-    await message.answer("Menu:", reply_markup=startMenu)
 
 
 # show tasks
@@ -98,7 +98,7 @@ async def process_view_task(callback_query):
         task = await db.execute_fetchall("SELECT description FROM tasks WHERE id = ?", (task_id,))
     
     if task:
-        await callback_query.message.answer(f"{task[0]}")
+        await callback_query.message.answer(task[0][0])
     else:
         await callback_query.message.answer("Task cannot be found.")
 
@@ -136,19 +136,18 @@ dp.callback_query.register(process_view_task, lambda c: c.data and c.data.starts
 dp.callback_query.register(process_complete_task, lambda c: c.data and c.data.startswith("complete_"))
 
 
+
+
+
 async def on_startup():
     await db_init()
     print("Database initialized")
 
-async def on_shutdown():
-    print("Shutting down...")
-
 async def main():
-    try:
-        await on_startup()
-        await dp.start_polling(bot)
-    except (KeyboardInterrupt, SystemExit):
-        await on_shutdown()
+    await on_startup()
+    loop = asyncio.get_running_loop()
+    loop.create_task(task_deletion_scheduler())
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())

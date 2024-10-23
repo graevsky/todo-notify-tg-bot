@@ -3,6 +3,7 @@ import asyncio
 
 DB_FILE = "tasks.db"
 time_format = "%H:%M"
+db_clear_period = 60
 
 async def db_init():
     async with aiosqlite.connect(DB_FILE) as db:
@@ -21,5 +22,12 @@ async def get_tasks(user_id):
         )
         return tasks
 
+async def task_deletion_scheduler():
+    await clear_tasks
+    await asyncio.sleep(db_clear_period)
 
+async def clear_tasks():
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("DELETE FROM tasks WHERE status == 1")
+        await db.commit
 # TODO: tasks deletion daily or after finish?
