@@ -136,5 +136,5 @@ async def task_deletion_scheduler():
 
 async def clear_tasks():
     async with aiosqlite.connect(DB_FILE) as db:
-        await db.execute("DELETE FROM tasks WHERE status == 1")
+        await db.execute("DELETE FROM tasks WHERE status = 1")
         await db.commit()
