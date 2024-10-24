@@ -36,7 +36,7 @@ dp = Dispatcher(storage=storage)
 # start
 @dp.message(Command("start"))
 async def start_command(message: Message):
-    await message.answer("Menu:", reply_markup=startMenu)
+    await message.answer("Menu_test:", reply_markup=startMenu)
 
 
 # add task
@@ -171,7 +171,11 @@ async def show_tasks(message: Message):
             text=status_emoji, callback_data=f"complete_{task_id}"
         )
 
-        inline_keyboard.append([task_button, complete_button])
+        edit_button = InlineKeyboardButton(
+            text="⚙️", callback_data=f"edit_{task_id}"
+        )
+
+        inline_keyboard.append([task_button, complete_button, edit_button])
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
@@ -220,6 +224,43 @@ async def process_complete_task(callback_query):
 
     await callback_query.message.edit_text("Your tasks:", reply_markup=keyboard)
     await callback_query.answer()
+
+
+@dp.callback_query(lambda c: c.data and c.data.startswith("edit_"))
+async def process_edit_task(callback_querry, state: FSMContext):
+    task_id = callback_querry.data.split("_")[1]
+
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "SElECT task FROM tasks WHERE id = ?", (task_id,)
+        )
+        task = await cursor.fetchall()
+
+    if task:
+        await callback_querry.message.answer(f"Current task name: {task[0]}")
+        await callback_querry.message.answer(f"Send a new task name")
+
+        await state.update_data(task_id=task_id)
+        await state.set_state(TaskStates.waiting_for_task_edit)
+    else:
+        await callback_querry.message.answer(f"Task not found.")
+    await callback_querry.answer()
+
+@dp.message(TaskStates.waiting_for_task_edit)
+async def save_edited_task(message: Message, state: FSMContext):
+    new_task_name = message.text
+    data = await state.get_data()
+
+    task_id = data['task_id']
+
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute(
+            "UPDATE tasks SET task = ? WHERE id = ?", (new_task_name, task_id)
+        )
+        await db.commit()
+    
+    await message.answer(f"Task updated to: {new_task_name}")
+    await state.clear()
 
 
 dp.callback_query.register(

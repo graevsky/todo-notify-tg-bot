@@ -1,3 +1,4 @@
 .env
 tasks.db
 TODO.md
+__pycache__/
