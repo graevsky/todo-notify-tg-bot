@@ -1,4 +1,4 @@
-name: Deploy to Server
+name: Deploy Bot to VPS
 
 on:
   push:
@@ -7,22 +7,24 @@ on:
 
 jobs:
   deploy:
-    name: Deploy bot to server
+    name: Deploy to VPS
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install SSH client
-        run: sudo apt-get install -y openssh-client
-
-      - name: Copy bot to server and restart service
+      - name: Set up SSH key
         run: |
+          mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh -o StrictHostKeyChecking=no root@37.143.10.223 "cd /root/todo-notify-tg-bot && git pull origin main"
-          ssh -o StrictHostKeyChecking=no root@37.143.10.223 "systemctl restart todo-bot"
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-keyscan -H ${{ secrets.VPS_IP }} >> ~/.ssh/known_hosts
 
+      - name: Deploy code to server
+        run: |
+          scp -r ./ root@${{ secrets.VPS_IP }}:/root/todo-notify-tg-bot/
+
+      - name: Restart bot service
+        run: |
+          ssh root@${{ secrets.VPS_IP }} "systemctl restart todo-bot"
