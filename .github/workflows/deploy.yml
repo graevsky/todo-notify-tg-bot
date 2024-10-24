@@ -1,0 +1,28 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy bot to server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install SSH client
+        run: sudo apt-get install -y openssh-client
+
+      - name: Copy bot to server and restart service
+        run: |
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh -o StrictHostKeyChecking=no root@37.143.10.223 "cd /root/todo-notify-tg-bot && git pull origin main"
+          ssh -o StrictHostKeyChecking=no root@37.143.10.223 "systemctl restart todo-bot"
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
