@@ -6,9 +6,9 @@ from aiogram.types import (
 startMenu = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="Show tasks"),
-            KeyboardButton(text="Add task"),
-            KeyboardButton(text="Settings"),
+            KeyboardButton(text="Show tasks 📋"),
+            KeyboardButton(text="Add task ➕"),
+            KeyboardButton(text="Settings ⚙️"),
         ]
     ],
     resize_keyboard=True,
@@ -19,10 +19,10 @@ startMenu = ReplyKeyboardMarkup(
 settingsMenu = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="Toggle tasks descriptions"),
-            KeyboardButton(text="Toggle tasks reminder"),
+            KeyboardButton(text="Toggle tasks descriptions 📖"),
+            KeyboardButton(text="Toggle tasks reminder ⏰"),
         ],
-        [KeyboardButton(text="Back")],
+        [KeyboardButton(text="Back 🔙")],
     ],
     resize_keyboard=True,
     one_time_keyboard=False,
