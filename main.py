@@ -41,7 +41,7 @@ async def start_command(message: Message):
 
 # add task
 @dp.message(Command("add_task"))
-@dp.message(lambda message: message.text == "Add task")
+@dp.message(lambda message: message.text == "Add task ➕")
 async def init_add_task(message: Message, state: FSMContext):
     await message.answer("Send me the task!")
     await state.set_state(TaskStates.waiting_for_task_name)
@@ -90,20 +90,20 @@ async def add_task_description(message: Message, state: FSMContext):
 
 # settings
 @dp.message(Command("settings"))
-@dp.message(lambda message: message.text == "Settings")
+@dp.message(lambda message: message.text == "Settings ⚙️")
 async def show_settings(message: Message):
     await message.answer("Settings:", reply_markup=settingsMenu)
 
 
 @dp.message(Command("back"))
-@dp.message(lambda message: message.text == "Back")
+@dp.message(lambda message: message.text == "Back 🔙")
 async def go_back_to_main_menu(message: Message):
     await message.answer("Menu:", reply_markup=startMenu)
 
 
 # description_setting
 @dp.message(Command("toggle_description_settings"))
-@dp.message(lambda message: message.text == "Toggle tasks descriptions")
+@dp.message(lambda message: message.text == "Toggle tasks descriptions 📖")
 async def toggle_description(message: Message):
     new_setting = await toggle_description_optional(message.from_user.id)
     status = "OFF" if new_setting == 1 else "ON"
@@ -112,7 +112,7 @@ async def toggle_description(message: Message):
 
 # reminder_settings
 @dp.message(Command("toggle_reminder_settings"))
-@dp.message(lambda message: message.text == "Toggle tasks reminder")
+@dp.message(lambda message: message.text == "Toggle tasks reminder ⏰")
 async def toggle_reminder(message: Message, state: FSMContext):
     new_setting = await toggle_reminder_optional(message.from_user.id)
     status = "ON" if new_setting == 1 else "OFF"
@@ -141,7 +141,7 @@ async def set_reminder_time(message: Message, state: FSMContext):
 
 # show tasks
 @dp.message(Command("show_tasks"))
-@dp.message(lambda message: message.text == "Show tasks")
+@dp.message(lambda message: message.text == "Show tasks 📋")
 async def show_tasks(message: Message):
     tasks = await get_tasks(message.from_user.id)
 
