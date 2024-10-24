@@ -9,3 +9,11 @@ class TaskStates(StatesGroup):
 
 class ReminderStates(StatesGroup):
     waiting_for_reminder_time = State()
+
+
+class NotificationStates(StatesGroup):
+    waiting_for_notification_name = State()
+    waiting_for_notification_date = State()
+    waiting_for_notification_time = State()
+    waiting_for_notification_edit_date = State()
+    waiting_for_notification_edit_time = State()

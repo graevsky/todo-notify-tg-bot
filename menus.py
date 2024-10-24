@@ -9,7 +9,11 @@ startMenu = ReplyKeyboardMarkup(
             KeyboardButton(text="Show tasks 📋"),
             KeyboardButton(text="Add task ➕"),
             KeyboardButton(text="Settings ⚙️"),
-        ]
+        ],
+        [
+            KeyboardButton(text="Add notification ⏰"),
+            KeyboardButton(text="Show notifications 📅"),
+        ],
     ],
     resize_keyboard=True,
     one_time_keyboard=False,
