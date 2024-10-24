@@ -11,9 +11,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
       - name: Set up SSH key
         uses: webfactory/ssh-agent@v0.5.3
         with:
@@ -25,7 +22,7 @@ jobs:
 
       - name: Deploy code to server
         run: |
-          scp -r ./ root@${{ secrets.VPS_IP }}:/root/todo-notify-tg-bot/
+          ssh root@${{ secrets.VPS_IP }} "cd /root/todo-notify-tg-bot && git pull origin main"
 
       - name: Restart bot service
         run: |
