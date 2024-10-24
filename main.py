@@ -288,7 +288,7 @@ async def set_notification_name(message: Message, state: FSMContext):
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[
                 [
-                    KeyboardButton(text="Tommorow"),
+                    KeyboardButton(text="Tomorrow"),
                     KeyboardButton(text="In 3 days"),
                     KeyboardButton(text="Next week"),
                 ]
@@ -314,13 +314,14 @@ async def set_notification_date(message: Message, state: FSMContext):
             notification_date = datetime.strptime(message.text, "%d.%m").replace(
                 year=datetime.now().year
             )
+            notification_date = notification_date.strftime("%d.%m.%Y")
         except ValueError:
             await message.answer(
-                "Invalid date format. Please enter in DD:MM format or choose a preset."
+                "Invalid date format. Please enter in DD.MM format or choose a preset."
             )
             return
 
-    await state.update_data(notification_date=notification_date.strftime("%d.%m.%Y"))
+    await state.update_data(notification_date=notification_date)
 
     await message.answer(
         "Please send me the time in HH:MM format or choose one of the presets:",
@@ -337,6 +338,7 @@ async def set_notification_date(message: Message, state: FSMContext):
         ),
     )
     await state.set_state(NotificationStates.waiting_for_notification_time)
+
 
 
 @dp.message(NotificationStates.waiting_for_notification_time)
@@ -489,13 +491,14 @@ async def edit_notification_date(message: Message, state: FSMContext):
             notification_date = datetime.strptime(message.text, "%d.%m").replace(
                 year=datetime.now().year
             )
+            notification_date = notification_date.strftime("%d.%m.%Y")
         except ValueError:
             await message.answer(
-                "Invalid date format. Please enter in DD:MM format or choose a preset."
+                "Invalid date format. Please enter in DD.MM format or choose a preset."
             )
             return
 
-    await state.update_data(notification_date=notification_date.strftime("%d.%m.%Y"))
+    await state.update_data(notification_date=notification_date)
 
     await message.answer(
         "Please send me the new time in HH:MM format or choose one of the presets:",
@@ -512,6 +515,7 @@ async def edit_notification_date(message: Message, state: FSMContext):
         ),
     )
     await state.set_state(NotificationStates.waiting_for_notification_edit_time)
+
 
 
 @dp.message(NotificationStates.waiting_for_notification_edit_time)
