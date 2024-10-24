@@ -21,14 +21,25 @@ async def db_init():
         )
         await db.execute(
             """CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY,
-            user_id INTEGER, task TEXT, description TEXT, status INTEGER DEFAULT 0)"""
+            user_id INTEGER, task TEXT, description TEXT,
+              status INTEGER DEFAULT 0)"""
         )
         await db.execute(
             """
-            CREATE TABLE IF NOT EXISTS user_settings (user_id INTEGER PRIMARY KEY, 
+            CREATE TABLE IF NOT EXISTS
+              user_settings (user_id INTEGER PRIMARY KEY, 
             description_optional INTEGER DEFAULT 0,
             reminder_optional INTEGER DEFAULT 0, reminder_time TEXT)
               """
+        )
+        await db.execute(
+            """CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY,
+            user_id INTEGER,
+            notification_name TEXT,
+            notification_date TEXT,
+            notification_time TEXT,
+            is_active INTEGER DEFAULT 1)"""
         )
         await db.commit()
 
@@ -64,7 +75,8 @@ async def toggle_description_optional(user_id):
         current_setting = user_settings["description_optional"]
         new_setting = 1 if current_setting == 0 else 0
         await db.execute(
-            "UPDATE user_settings SET description_optional = ? WHERE user_id = ?",
+            """UPDATE user_settings SET
+            description_optional = ? WHERE user_id = ?""",
             (new_setting, user_id),
         )
         await db.commit()
@@ -120,10 +132,40 @@ async def reminder_scheduler(bot):
         await asyncio.sleep(60)
 
 
+async def notification_scheduler(bot):
+    while True:
+        now = datetime.now(pytz.timezone("Europe/Moscow"))
+
+        async with aiosqlite.connect(DB_FILE) as db:
+            cursor = await db.execute(
+                """SELECT id, user_id, notification_name FROM notifications 
+                WHERE notification_date = ? AND
+                notification_time = ? AND is_active = 1""",
+                (now.strftime("%d.%m.%Y"), now.strftime("%H:%M")),
+            )
+            notifications = await cursor.fetchall()
+
+        if notifications:
+            for notification in notifications:
+                notification_id, user_id, notification_name = notification
+
+                await bot.send_message(user_id, f"Reminder: {notification_name}")
+
+                async with aiosqlite.connect(DB_FILE) as db:
+                    await db.execute(
+                        "UPDATE notifications SET is_active = 0 WHERE id = ?",
+                        (notification_id,),
+                    )
+                    await db.commit()
+
+        await asyncio.sleep(60)
+
+
 async def get_tasks(user_id):
     async with aiosqlite.connect(DB_FILE) as db:
         tasks = await db.execute_fetchall(
-            "SELECT id, task, description, status FROM tasks where user_id = ?",
+            """SELECT id, task, description,
+            status FROM tasks where user_id = ?""",
             (user_id,),
         )
         return tasks
@@ -132,10 +174,17 @@ async def get_tasks(user_id):
 async def task_deletion_scheduler():
     while True:
         await clear_tasks()
+        await clear_notifications()
         await asyncio.sleep(db_clear_period)
 
 
 async def clear_tasks():
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("DELETE FROM tasks WHERE status = 1")
+        await db.commit()
+
+
+async def clear_notifications():
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("DELETE FROM notifications WHERE is_active = 0")
         await db.commit()

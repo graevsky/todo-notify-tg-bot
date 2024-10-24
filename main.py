@@ -5,7 +5,14 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+)
+
+from datetime import datetime, timedelta
 
 import aiosqlite
 import asyncio
@@ -21,8 +28,9 @@ from db import (
     toggle_reminder_optional,
     reminder_scheduler,
     update_reminder_time,
+    notification_scheduler,
 )
-from states import TaskStates, ReminderStates
+from states import TaskStates, ReminderStates, NotificationStates
 from menus import startMenu, settingsMenu
 
 load_dotenv()
@@ -36,7 +44,7 @@ dp = Dispatcher(storage=storage)
 # start
 @dp.message(Command("start"))
 async def start_command(message: Message):
-    await message.answer("Menu_test:", reply_markup=startMenu)
+    await message.answer("Menu:", reply_markup=startMenu)
 
 
 # add task
@@ -172,7 +180,7 @@ async def show_tasks(message: Message):
         )
 
         edit_button = InlineKeyboardButton(
-            text="⚙️", callback_data=f"edit_{task_id}"
+            text="⚙️", callback_data=f"edit_task_{task_id}"
         )
 
         inline_keyboard.append([task_button, complete_button, edit_button])
@@ -208,7 +216,8 @@ async def process_complete_task(callback_query):
             task_name, current_status = task
             new_status = 1 if current_status == 0 else 0
             await db.execute(
-                "UPDATE tasks SET status = ? WHERE id = ?", (new_status, task_id)
+                "UPDATE tasks SET status = ? WHERE id = ?",
+                (new_status, task_id),
             )
             await db.commit()
 
@@ -226,43 +235,318 @@ async def process_complete_task(callback_query):
     await callback_query.answer()
 
 
-@dp.callback_query(lambda c: c.data and c.data.startswith("edit_"))
-async def process_edit_task(callback_querry, state: FSMContext):
-    task_id = callback_querry.data.split("_")[1]
+@dp.callback_query(lambda c: c.data and c.data.startswith("edit_task_"))
+async def process_edit_task(callback_query, state: FSMContext):
+    task_id = callback_query.data.split("_")[2]
 
     async with aiosqlite.connect(DB_FILE) as db:
-        cursor = await db.execute(
-            "SElECT task FROM tasks WHERE id = ?", (task_id,)
-        )
-        task = await cursor.fetchall()
+        cursor = await db.execute("SELECT task FROM tasks WHERE id = ?", (task_id,))
+        task = await cursor.fetchone()
 
     if task:
-        await callback_querry.message.answer(f"Current task name: {task[0]}")
-        await callback_querry.message.answer("Send a new task name")
-
         await state.update_data(task_id=task_id)
+        await callback_query.message.answer(
+            f"Current task name: {task[0]}\nSend a new task name"
+        )
         await state.set_state(TaskStates.waiting_for_task_edit)
     else:
-        await callback_querry.message.answer("Task not found.")
-    await callback_querry.answer()
+        await callback_query.message.answer("Task not found.")
+    await callback_query.answer()
+
 
 @dp.message(TaskStates.waiting_for_task_edit)
 async def save_edited_task(message: Message, state: FSMContext):
     new_task_name = message.text
     data = await state.get_data()
 
-    task_id = data['task_id']
+    task_id = data["task_id"]
 
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute(
             "UPDATE tasks SET task = ? WHERE id = ?", (new_task_name, task_id)
         )
         await db.commit()
-    
+
     await message.answer(f"Task updated to: {new_task_name}")
     await state.clear()
 
 
+# Notifications
+@dp.message(lambda message: message.text == "Add notification ⏰")
+async def init_add_notification(message: Message, state: FSMContext):
+    await message.answer("Send me the notification name.")
+    await state.set_state(NotificationStates.waiting_for_notification_name)
+
+
+@dp.message(NotificationStates.waiting_for_notification_name)
+async def set_notification_name(message: Message, state: FSMContext):
+    notification_name = message.text
+    await state.update_data(notification_name=notification_name)
+
+    await message.answer(
+        "Please send me the date in DD.MM format or choose from presets:",
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard=[
+                [
+                    KeyboardButton(text="Tommorow"),
+                    KeyboardButton(text="In 3 days"),
+                    KeyboardButton(text="Next week"),
+                ]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+        ),
+    )
+    await state.set_state(NotificationStates.waiting_for_notification_date)
+
+
+@dp.message(NotificationStates.waiting_for_notification_date)
+async def set_notification_date(message: Message, state: FSMContext):
+    if message.text.lower() == "tomorrow":
+        notification_date = (datetime.now() + timedelta(days=1)).strftime("%d.%m.%Y")
+    elif message.text.lower() == "in 3 days":
+        notification_date = (datetime.now() + timedelta(days=3)).strftime("%d.%m.%Y")
+    elif message.text.lower() == "next week":
+        notification_date = (datetime.now() + timedelta(days=7)).strftime("%d.%m.%Y")
+    else:
+        # date validation
+        try:
+            notification_date = datetime.strptime(message.text, "%d.%m").replace(
+                year=datetime.now().year
+            )
+        except ValueError:
+            await message.answer(
+                "Invalid date format. Please enter in DD:MM format or choose a preset."
+            )
+            return
+
+    await state.update_data(notification_date=notification_date.strftime("%d.%m.%Y"))
+
+    await message.answer(
+        "Please send me the time in HH:MM format or choose one of the presets:",
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard=[
+                [
+                    KeyboardButton(text="10:00"),
+                    KeyboardButton(text="14:00"),
+                    KeyboardButton(text="18:00"),
+                ]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+        ),
+    )
+    await state.set_state(NotificationStates.waiting_for_notification_time)
+
+
+@dp.message(NotificationStates.waiting_for_notification_time)
+async def set_notification_time(message: Message, state: FSMContext):
+    if message.text in ["10:00", "14:00", "18:00"]:
+        notification_time = message.text
+    else:
+        # time validation
+        try:
+            time_object = time.strptime(message.text, "%H:%M")
+            notification_time = time.strftime("%H:%M", time_object)
+        except ValueError:
+            await message.answer(
+                "Invalid time format. Please enter in HH:MM format or choose a preset."
+            )
+            return
+
+    await state.update_data(notification_time=notification_time)
+    data = await state.get_data()
+
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute(
+            """INSERT INTO notifications
+            (user_id, notification_name, notification_date, notification_time)
+            VALUES (?, ?, ?, ?)""",
+            (
+                message.from_user.id,
+                data["notification_name"],
+                data["notification_date"],
+                data["notification_time"],
+            ),
+        )
+        await db.commit()
+
+    await message.answer(
+        f"""Reminder '{data['notification_name']}' set for
+        {data['notification_date']} at {data['notification_time']}""",
+        reply_markup=startMenu,
+    )
+
+    await state.clear()
+
+
+@dp.message(lambda message: message.text == "Show notifications 📅")
+async def show_notifications(message: Message):
+    async with aiosqlite.connect(DB_FILE) as db:
+        notifications = await db.execute_fetchall(
+            """SELECT id, notification_name, notification_date,
+            notification_time FROM notifications WHERE
+            user_id = ? AND is_active = 1""",
+            (message.from_user.id,),
+        )
+
+    if not notifications:
+        await message.answer("You have no active notifications.")
+        return
+
+    inline_keyboard = []
+    for notification in notifications:
+        notification_id, name, date, time = notification
+
+        edit_button = InlineKeyboardButton(
+            text="✏️ Edit", callback_data=f"edit_notification_{notification_id}"
+        )
+        complete_button = InlineKeyboardButton(
+            text="✅ Complete",
+            callback_data=f"complete_notification_{notification_id}",
+        )
+
+        notification_button = InlineKeyboardButton(
+            text=f"{name} | {date} | {time}",
+            callback_data=f"view_notification_{notification_id}|{name}|{date}|{time}",
+        )
+
+        inline_keyboard.append([notification_button, edit_button, complete_button])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+
+    await message.answer("Your notifications:", reply_markup=keyboard)
+
+
+@dp.callback_query(lambda c: c.data and c.data.startswith("view_notification_"))
+async def view_notification(callback_query):
+    _, name, date, time = callback_query.data.split("|")
+
+    await callback_query.message.answer(f"{name}\n{date}\n{time}")
+
+    await callback_query.answer()
+
+
+@dp.callback_query(lambda c: c.data and c.data.startswith("complete_notification_"))
+async def complete_notification(callback_query):
+    notification_id = callback_query.data.split("_")[2]
+
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute(
+            "UPDATE notifications SET is_active = 0 WHERE id = ?",
+            (notification_id,),
+        )
+        await db.commit()
+
+    await callback_query.message.answer("Notification completed.")
+    await callback_query.answer()
+
+
+@dp.callback_query(lambda c: c.data and c.data.startswith("edit_notification_"))
+async def edit_notification(callback_query, state: FSMContext):
+    notification_id = callback_query.data.split("_")[2]
+
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "SELECT notification_name FROM notifications WHERE id = ?",
+            (notification_id,),
+        )
+        notification = await cursor.fetchone()
+
+    if notification:
+        await state.update_data(notification_id=notification_id)
+        await callback_query.message.answer(
+            f"""Current notification name: {notification[0]}\nPlease
+            send me the new date in DD.MM format or choose from presets:""",
+            reply_markup=ReplyKeyboardMarkup(
+                keyboard=[
+                    [
+                        KeyboardButton(text="Tomorrow"),
+                        KeyboardButton(text="In 3 days"),
+                        KeyboardButton(text="Next week"),
+                    ]
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=True,
+            ),
+        )
+        await state.set_state(NotificationStates.waiting_for_notification_edit_date)
+    else:
+        await callback_query.message.answer("Notification not found.")
+    await callback_query.answer()
+
+
+@dp.message(NotificationStates.waiting_for_notification_edit_date)
+async def edit_notification_date(message: Message, state: FSMContext):
+    if message.text.lower() == "tomorrow":
+        notification_date = (datetime.now() + timedelta(days=1)).strftime("%d.%m.%Y")
+    elif message.text.lower() == "in 3 days":
+        notification_date = (datetime.now() + timedelta(days=3)).strftime("%d.%m.%Y")
+    elif message.text.lower() == "next week":
+        notification_date = (datetime.now() + timedelta(days=7)).strftime("%d.%m.%Y")
+    else:
+        try:
+            notification_date = datetime.strptime(message.text, "%d.%m").replace(
+                year=datetime.now().year
+            )
+        except ValueError:
+            await message.answer(
+                "Invalid date format. Please enter in DD:MM format or choose a preset."
+            )
+            return
+
+    await state.update_data(notification_date=notification_date.strftime("%d.%m.%Y"))
+
+    await message.answer(
+        "Please send me the new time in HH:MM format or choose one of the presets:",
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard=[
+                [
+                    KeyboardButton(text="10:00"),
+                    KeyboardButton(text="14:00"),
+                    KeyboardButton(text="18:00"),
+                ]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+        ),
+    )
+    await state.set_state(NotificationStates.waiting_for_notification_edit_time)
+
+
+@dp.message(NotificationStates.waiting_for_notification_edit_time)
+async def edit_notification_time(message: Message, state: FSMContext):
+    if message.text in ["10:00", "14:00", "18:00"]:
+        notification_time = message.text
+    else:
+        try:
+            time_object = time.strptime(message.text, "%H:%M")
+            notification_time = time.strftime("%H:%M", time_object)
+        except ValueError:
+            await message.answer(
+                "Invalid time format. Please enter in HH:MM format or choose a preset."
+            )
+            return
+
+    data = await state.get_data()
+    notification_id = data["notification_id"]
+
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute(
+            """UPDATE notifications SET notification_date = ?,
+            notification_time = ? WHERE id = ?""",
+            (data["notification_date"], notification_time, notification_id),
+        )
+        await db.commit()
+
+    await message.answer(
+        f"Notification updated to {data['notification_date']} at {notification_time}",
+        reply_markup=startMenu,
+    )
+    await state.clear()
+
+
+# callback register
 dp.callback_query.register(
     process_view_task, lambda c: c.data and c.data.startswith("view_")
 )
@@ -281,6 +565,7 @@ async def main():
     loop = asyncio.get_running_loop()
     loop.create_task(task_deletion_scheduler())
     loop.create_task(reminder_scheduler(bot))
+    loop.create_task(notification_scheduler(bot))
     await dp.start_polling(bot)
 
 
