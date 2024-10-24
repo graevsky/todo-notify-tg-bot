@@ -238,12 +238,12 @@ async def process_edit_task(callback_querry, state: FSMContext):
 
     if task:
         await callback_querry.message.answer(f"Current task name: {task[0]}")
-        await callback_querry.message.answer(f"Send a new task name")
+        await callback_querry.message.answer("Send a new task name")
 
         await state.update_data(task_id=task_id)
         await state.set_state(TaskStates.waiting_for_task_edit)
     else:
-        await callback_querry.message.answer(f"Task not found.")
+        await callback_querry.message.answer("Task not found.")
     await callback_querry.answer()
 
 @dp.message(TaskStates.waiting_for_task_edit)
