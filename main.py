@@ -284,50 +284,11 @@ async def set_notification_name(message: Message, state: FSMContext):
     await state.update_data(notification_name=notification_name)
 
     await message.answer(
-        "Please send me the date in DD.MM format or choose from presets:",
-        reply_markup=ReplyKeyboardMarkup(
-            keyboard=[
-                [
-                    KeyboardButton(text="Tomorrow"),
-                    KeyboardButton(text="In 3 days"),
-                    KeyboardButton(text="Next week"),
-                ]
-            ],
-            resize_keyboard=True,
-            one_time_keyboard=True,
-        ),
-    )
-    await state.set_state(NotificationStates.waiting_for_notification_date)
-
-
-@dp.message(NotificationStates.waiting_for_notification_date)
-async def set_notification_date(message: Message, state: FSMContext):
-    if message.text.lower() == "tomorrow":
-        notification_date = (datetime.now() + timedelta(days=1)).strftime("%d.%m.%Y")
-    elif message.text.lower() == "in 3 days":
-        notification_date = (datetime.now() + timedelta(days=3)).strftime("%d.%m.%Y")
-    elif message.text.lower() == "next week":
-        notification_date = (datetime.now() + timedelta(days=7)).strftime("%d.%m.%Y")
-    else:
-        # date validation
-        try:
-            notification_date = datetime.strptime(message.text, "%d.%m").replace(
-                year=datetime.now().year
-            )
-            notification_date = notification_date.strftime("%d.%m.%Y")
-        except ValueError:
-            await message.answer(
-                "Invalid date format. Please enter in DD.MM format or choose a preset."
-            )
-            return
-
-    await state.update_data(notification_date=notification_date)
-
-    await message.answer(
         "Please send me the time in HH:MM format or choose one of the presets:",
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[
                 [
+                    KeyboardButton(text="In 1 hour"),
                     KeyboardButton(text="10:00"),
                     KeyboardButton(text="14:00"),
                     KeyboardButton(text="18:00"),
@@ -340,23 +301,85 @@ async def set_notification_date(message: Message, state: FSMContext):
     await state.set_state(NotificationStates.waiting_for_notification_time)
 
 
-
 @dp.message(NotificationStates.waiting_for_notification_time)
 async def set_notification_time(message: Message, state: FSMContext):
-    if message.text in ["10:00", "14:00", "18:00"]:
-        notification_time = message.text
+    data = await state.get_data()
+    if message.text.lower() == "in 1 hour":
+        notification_time = (datetime.now() + timedelta(hours=1)).strftime("%H:%M")
+        notification_date = (datetime.now() + timedelta(hours=1)).strftime("%d.%m.%Y")
+        await state.update_data(
+            notification_time=notification_time, notification_date=notification_date
+        )
+
+        async with aiosqlite.connect(DB_FILE) as db:
+            await db.execute(
+                """INSERT INTO notifications
+                (user_id, notification_name, notification_date, notification_time)
+                VALUES (?, ?, ?, ?)""",
+                (
+                    message.from_user.id,
+                    data["notification_name"],
+                    notification_date,
+                    notification_time,
+                ),
+            )
+            await db.commit()
+
+        await message.answer(
+            f"""Reminder '{data['notification_name']}'
+            set for {notification_date} at {notification_time}""",
+            reply_markup=startMenu,
+        )
+        await state.clear()
     else:
-        # time validation
         try:
             time_object = time.strptime(message.text, "%H:%M")
             notification_time = time.strftime("%H:%M", time_object)
+            await state.update_data(notification_time=notification_time)
+
+            await message.answer(
+                "Please send me the date in DD.MM format or choose from presets:",
+                reply_markup=ReplyKeyboardMarkup(
+                    keyboard=[
+                        [
+                            KeyboardButton(text="Tomorrow"),
+                            KeyboardButton(text="In 3 days"),
+                            KeyboardButton(text="Next week"),
+                        ]
+                    ],
+                    resize_keyboard=True,
+                    one_time_keyboard=True,
+                ),
+            )
+            await state.set_state(NotificationStates.waiting_for_notification_date)
         except ValueError:
             await message.answer(
                 "Invalid time format. Please enter in HH:MM format or choose a preset."
             )
+
+
+@dp.message(NotificationStates.waiting_for_notification_date)
+async def set_notification_date(message: Message, state: FSMContext):
+    if message.text.lower() == "tomorrow":
+        notification_date = (datetime.now() + timedelta(days=1)).strftime("%d.%m.%Y")
+    elif message.text.lower() == "in 3 days":
+        notification_date = (datetime.now() + timedelta(days=3)).strftime("%d.%m.%Y")
+    elif message.text.lower() == "next week":
+        notification_date = (datetime.now() + timedelta(days=7)).strftime("%d.%m.%Y")
+    else:
+        try:
+            notification_date = (
+                datetime.strptime(message.text, "%d.%m")
+                .replace(year=datetime.now().year)
+                .strftime("%d.%m.%Y")
+            )
+        except ValueError:
+            await message.answer(
+                "Invalid date format. Please enter in DD.MM format or choose a preset."
+            )
             return
 
-    await state.update_data(notification_time=notification_time)
+    await state.update_data(notification_date=notification_date)
     data = await state.get_data()
 
     async with aiosqlite.connect(DB_FILE) as db:
@@ -374,11 +397,10 @@ async def set_notification_time(message: Message, state: FSMContext):
         await db.commit()
 
     await message.answer(
-        f"""Reminder '{data['notification_name']}' set for
-        {data['notification_date']} at {data['notification_time']}""",
+        f"""Reminder '{data['notification_name']}' 
+        set for {data['notification_date']} at {data['notification_time']}""",
         reply_markup=startMenu,
     )
-
     await state.clear()
 
 
@@ -515,7 +537,6 @@ async def edit_notification_date(message: Message, state: FSMContext):
         ),
     )
     await state.set_state(NotificationStates.waiting_for_notification_edit_time)
-
 
 
 @dp.message(NotificationStates.waiting_for_notification_edit_time)
