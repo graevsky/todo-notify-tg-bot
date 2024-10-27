@@ -6,13 +6,15 @@ from aiogram.types import (
 startMenu = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="Show tasks 📋"),
             KeyboardButton(text="Add task ➕"),
-            KeyboardButton(text="Settings ⚙️"),
+            KeyboardButton(text="Show tasks 📋"),
         ],
         [
             KeyboardButton(text="Add notification ⏰"),
             KeyboardButton(text="Show notifications 📅"),
+        ],
+        [
+            KeyboardButton(text="Settings ⚙️"),
         ],
     ],
     resize_keyboard=True,
