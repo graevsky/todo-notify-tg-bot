@@ -13,6 +13,8 @@ from aiogram.types import (
 )
 
 from datetime import datetime, timedelta
+import logging
+logging.basicConfig(level=logging.INFO)
 
 import aiosqlite
 import asyncio
@@ -51,6 +53,7 @@ async def start_command(message: Message):
 @dp.message(Command("add_task"))
 @dp.message(lambda message: message.text == "Add task ➕")
 async def init_add_task(message: Message, state: FSMContext):
+    await state.clear()
     await message.answer("Send me the task!")
     await state.set_state(TaskStates.waiting_for_task_name)
 
@@ -274,6 +277,7 @@ async def save_edited_task(message: Message, state: FSMContext):
 # Notifications
 @dp.message(lambda message: message.text == "Add notification ⏰")
 async def init_add_notification(message: Message, state: FSMContext):
+    state.clear()
     await message.answer("Send me the notification name.")
     await state.set_state(NotificationStates.waiting_for_notification_name)
 
@@ -406,6 +410,7 @@ async def set_notification_date(message: Message, state: FSMContext):
 
 @dp.message(lambda message: message.text == "Show notifications 📅")
 async def show_notifications(message: Message):
+    logging.info(f"User ID: {message.from_user.id} requested to show notifications")
     async with aiosqlite.connect(DB_FILE) as db:
         notifications = await db.execute_fetchall(
             """SELECT id, notification_name, notification_date,
