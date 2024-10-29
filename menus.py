@@ -1,6 +1,8 @@
 from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup
 )
 
 startMenu = ReplyKeyboardMarkup(
@@ -21,6 +23,9 @@ startMenu = ReplyKeyboardMarkup(
     one_time_keyboard=False,
     input_field_placeholder="Menu",
 )
+
+cancel_button = InlineKeyboardButton(text="Отмена 🛇", callback_data="cancel_action")
+cancel_markup = InlineKeyboardMarkup(inline_keyboard=[[cancel_button]])
 
 settingsMenu = ReplyKeyboardMarkup(
     keyboard=[
