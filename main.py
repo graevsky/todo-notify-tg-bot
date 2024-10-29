@@ -1,21 +1,3 @@
-import os
-from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher
-from aiogram.types import Message
-from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import (
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
-)
-
-from datetime import datetime, timedelta
-import logging
-logging.basicConfig(level=logging.INFO)
-
 import aiosqlite
 import asyncio
 import time
@@ -34,6 +16,27 @@ from db import (
 )
 from states import TaskStates, ReminderStates, NotificationStates
 from menus import startMenu, settingsMenu
+
+
+import os
+from dotenv import load_dotenv
+from aiogram import Bot, Dispatcher
+from aiogram.types import Message
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import (
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+)
+
+from datetime import datetime, timedelta
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 
 load_dotenv()
 
@@ -436,8 +439,7 @@ async def show_notifications(message: Message):
         )
 
         notification_button = InlineKeyboardButton(
-            text=f"{name} | {date} | {time}",
-            callback_data=f"view_notification_{notification_id}|{name}|{date}|{time}",
+            text=f"{name} | {date} | {time}", callback_data=f"view_{notification_id}"
         )
 
         inline_keyboard.append([notification_button, edit_button, complete_button])
@@ -447,11 +449,23 @@ async def show_notifications(message: Message):
     await message.answer("Your notifications:", reply_markup=keyboard)
 
 
-@dp.callback_query(lambda c: c.data and c.data.startswith("view_notification_"))
+@dp.callback_query(lambda c: c.data and c.data.startswith("view_"))
 async def view_notification(callback_query):
-    _, name, date, time = callback_query.data.split("|")
+    notification_id = callback_query.data.split("_")[1]
 
-    await callback_query.message.answer(f"{name}\n{date}\n{time}")
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            """SELECT notification_name, notification_date, notification_time 
+            FROM notifications WHERE id = ?""",
+            (notification_id,),
+        )
+        notification = await cursor.fetchone()
+
+    if notification:
+        name, date, time = notification
+        await callback_query.message.answer(f"{name}\n{date}\n{time}")
+    else:
+        await callback_query.message.answer("Notification not found.")
 
     await callback_query.answer()
 
