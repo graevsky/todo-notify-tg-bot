@@ -16,10 +16,6 @@ db_clear_period = int(os.getenv("DB_CLEAR_PERIOD"))
 async def db_init():
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute(
-            """CREATE TABLE IF NOT EXISTS users 
-            (id INTEGER PRIMARY KEY, user_id INTEGER UNIQUE)"""
-        )
-        await db.execute(
             """CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY,
             user_id INTEGER, task TEXT, description TEXT,
               status INTEGER DEFAULT 0)"""
@@ -44,6 +40,7 @@ async def db_init():
         await db.commit()
 
 
+# Settings
 async def get_user_settings(user_id):
     async with aiosqlite.connect(DB_FILE) as db:
         cursor = await db.execute(
@@ -165,10 +162,103 @@ async def get_tasks(user_id):
     async with aiosqlite.connect(DB_FILE) as db:
         tasks = await db.execute_fetchall(
             """SELECT id, task, description,
-            status FROM tasks where user_id = ?""",
+            status FROM tasks where user_id = ? AND status = 0""",
             (user_id,),
         )
         return tasks
+
+
+async def get_single_task(task_id):
+    async with aiosqlite.connect(DB_FILE) as db:
+        async with db.execute(
+            "SELECT task, status FROM tasks WHERE id = ?", (task_id,)
+        ) as cursor:
+            task = await cursor.fetchone()
+        return task
+
+
+async def update_task_status(task_id, new_status):
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute(
+            "UPDATE tasks SET status = ? WHERE id = ?", (new_status, task_id)
+        )
+        await db.commit()
+
+
+async def set_task_name(task_id, task_name):
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("UPDATE tasks SET task = ? WHERE id = ?", (task_name, task_id))
+        await db.commit()
+
+
+async def get_task_description(task_id):
+    async with aiosqlite.connect(DB_FILE) as db:
+        task = await db.execute_fetchall(
+            "SELECT description FROM tasks WHERE id = ?", (task_id,)
+        )
+        return task
+
+
+async def insert_task(user_id, task, description):
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute(
+            "INSERT INTO tasks (user_id, task, description) VALUES (?, ?, ?)",
+            (user_id, task, description),
+        )
+        await db.commit()
+
+
+async def get_notifications(user_id):
+    async with aiosqlite.connect(DB_FILE) as db:
+        notifications = await db.execute_fetchall(
+            """SELECT id, notification_name, notification_date,
+            notification_time FROM notifications 
+            WHERE user_id = ? AND is_active = 1""",
+            (user_id,),
+        )
+        return notifications
+
+
+async def get_single_notification(notification_id):
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            """SELECT notification_name, notification_date, notification_time
+            FROM notifications WHERE id = ?""",
+            (notification_id,),
+        )
+        return await cursor.fetchone()
+
+
+async def insert_notification(
+    user_id, notification_name, notification_date, notification_time
+):
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute(
+            """INSERT INTO notifications
+            (user_id, notification_name, notification_date, notification_time)
+            VALUES (?, ?, ?, ?)""",
+            (user_id, notification_name, notification_date, notification_time),
+        )
+        await db.commit()
+
+
+async def update_notification(notification_id, notification_date, notification_time):
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute(
+            """UPDATE notifications SET notification_date = ?,
+            notification_time = ? WHERE id = ?""",
+            (notification_date, notification_time, notification_id),
+        )
+        await db.commit()
+
+
+async def disable_notification(notification_id):
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute(
+            "UPDATE notifications SET is_active = 0 WHERE id = ?",
+            (notification_id,),
+        )
+        await db.commit()
 
 
 async def task_deletion_scheduler():
