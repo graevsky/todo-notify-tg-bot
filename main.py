@@ -23,7 +23,7 @@ from utils.db.db import (
     disable_notification,
 )
 from states import TaskStates, ReminderStates, NotificationStates
-from menus import startMenu, settingsMenu, cancel_button, cancel_markup
+from menus import startMenu, settingsMenu, cancel_markup
 
 
 import os
@@ -38,7 +38,7 @@ from aiogram.types import (
     InlineKeyboardButton,
     ReplyKeyboardMarkup,
     KeyboardButton,
-    CallbackQuery
+    CallbackQuery,
 )
 
 from datetime import datetime, timedelta
@@ -279,7 +279,7 @@ async def set_notification_name(message: Message, state: FSMContext):
                     KeyboardButton(text="14:00"),
                     KeyboardButton(text="18:00"),
                 ],
-                [KeyboardButton(text="Отмена 🛇")]
+                [KeyboardButton(text="Отмена 🛇")],
             ],
             resize_keyboard=True,
             one_time_keyboard=True,
@@ -288,17 +288,24 @@ async def set_notification_name(message: Message, state: FSMContext):
     await state.set_state(NotificationStates.waiting_for_notification_time)
 
 
-
 @dp.message(NotificationStates.waiting_for_notification_time)
 async def set_notification_time(message: Message, state: FSMContext):
     data = await state.get_data()
     if message.text.lower() == "in 1 hour":
         notification_time = (datetime.now() + timedelta(hours=1)).strftime("%H:%M")
         notification_date = (datetime.now() + timedelta(hours=1)).strftime("%d.%m.%Y")
-        await state.update_data(notification_time=notification_time, notification_date=notification_date)
-        await insert_notification(message.from_user.id, data["notification_name"], notification_date, notification_time)
+        await state.update_data(
+            notification_time=notification_time, notification_date=notification_date
+        )
+        await insert_notification(
+            message.from_user.id,
+            data["notification_name"],
+            notification_date,
+            notification_time,
+        )
         await message.answer(
-            f"""Reminder '{data['notification_name']}' set for {notification_date} at {notification_time}""",
+            f"Reminder '{data['notification_name']}' set for {notification_date}"
+            f" at {notification_time}",
             reply_markup=startMenu,
         )
         await state.clear()
@@ -314,8 +321,12 @@ async def set_notification_time(message: Message, state: FSMContext):
                 "Please send me the date in DD.MM format or choose from presets:",
                 reply_markup=ReplyKeyboardMarkup(
                     keyboard=[
-                        [KeyboardButton(text="Tomorrow"), KeyboardButton(text="In 3 days"), KeyboardButton(text="Next week")],
-                        [KeyboardButton(text="Отмена 🛇")]
+                        [
+                            KeyboardButton(text="Tomorrow"),
+                            KeyboardButton(text="In 3 days"),
+                            KeyboardButton(text="Next week"),
+                        ],
+                        [KeyboardButton(text="Отмена 🛇")],
                     ],
                     resize_keyboard=True,
                     one_time_keyboard=True,
@@ -323,9 +334,9 @@ async def set_notification_time(message: Message, state: FSMContext):
             )
             await state.set_state(NotificationStates.waiting_for_notification_date)
         except ValueError:
-            await message.answer("Invalid time format. Please enter in HH:MM format or choose a preset.")
-
-
+            await message.answer(
+                "Invalid time format. Please enter in HH:MM format or choose a preset."
+            )
 
 
 @dp.message(NotificationStates.waiting_for_notification_date)
@@ -369,7 +380,6 @@ async def set_notification_date(message: Message, state: FSMContext):
         reply_markup=startMenu,
     )
     await state.clear()
-
 
 
 @dp.message(lambda message: message.text == "Show notifications 📅")
@@ -518,6 +528,7 @@ async def edit_notification_time(message: Message, state: FSMContext):
         reply_markup=startMenu,
     )
     await state.clear()
+
 
 @dp.callback_query(lambda c: c.data == "cancel_action")
 async def cancel_action(callback_query: CallbackQuery, state: FSMContext):
