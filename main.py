@@ -217,8 +217,8 @@ async def complete_task(callback_query: CallbackQuery):
         await update_task_status(task_id, new_status)
         await callback_query.message.edit_reply_markup(reply_markup=None)
         await callback_query.message.answer(
-            f"Task '{task_name}' marked as {'completed' if new_status == 1 else 
-                                            'incomplete'}."
+            f"""Task '{task_name}' marked as {'completed' if new_status == 1 else 
+                                            'incomplete'}."""
         )
     else:
         await callback_query.answer("Task not found.")
