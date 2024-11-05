@@ -171,7 +171,7 @@ async def get_tasks(user_id):
 async def get_single_task(task_id):
     async with aiosqlite.connect(DB_FILE) as db:
         async with db.execute(
-            "SELECT task, status FROM tasks WHERE id = ?", (task_id,)
+            "SELECT task, description, status FROM tasks WHERE id = ?", (task_id,)
         ) as cursor:
             task = await cursor.fetchone()
         return task

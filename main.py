@@ -13,7 +13,6 @@ from utils.db.db import (
     notification_scheduler,
     get_notifications,
     insert_task,
-    get_task_description,
     get_single_task,
     update_task_status,
     set_task_name,
@@ -23,7 +22,8 @@ from utils.db.db import (
     disable_notification,
 )
 from states import TaskStates, ReminderStates, NotificationStates
-from menus import startMenu, settingsMenu, cancel_markup
+from menus import startMenu, cancel_markup
+from utils.dynamic_keyboard import generate_settings_menu
 
 
 import os
@@ -58,49 +58,12 @@ async def start_command(message: Message):
     await message.answer("Menu:", reply_markup=startMenu)
 
 
-# add task
-@dp.message(Command("add_task"))
-@dp.message(lambda message: message.text == "Add task ➕")
-async def init_add_task(message: Message, state: FSMContext):
-    await state.clear()
-    await message.answer("Send me the task!", reply_markup=cancel_markup)
-    await state.set_state(TaskStates.waiting_for_task_name)
-
-
-@dp.message(TaskStates.waiting_for_task_name)
-async def add_task_name(message: Message, state: FSMContext):
-    await state.update_data(task_name=message.text)
-
-    user_settings = await get_user_settings(message.from_user.id)
-    description_optional = user_settings["description_optional"]
-
-    if description_optional:
-        task_name = message.text
-        await insert_task(message.from_user.id, task_name, "")
-
-        await message.answer("Task added successfully!")
-        await state.clear()
-    else:
-        await message.answer("Now send me description!", reply_markup=cancel_markup)
-        await state.set_state(TaskStates.waiting_for_task_description)
-
-
-@dp.message(TaskStates.waiting_for_task_description)
-async def add_task_description(message: Message, state: FSMContext):
-    data = await state.get_data()
-    task_name = data["task_name"]
-    task_description = message.text
-    await insert_task(message.from_user.id, task_name, task_description)
-
-    await message.answer("Task added successfully!")
-    await state.clear()
-
-
 # settings
 @dp.message(Command("settings"))
 @dp.message(lambda message: message.text == "Settings ⚙️")
 async def show_settings(message: Message):
-    await message.answer("Settings:", reply_markup=settingsMenu)
+    settings_menu = await generate_settings_menu(message.from_user.id)
+    await message.answer("Settings:", reply_markup=settings_menu)
 
 
 @dp.message(Command("back"))
@@ -109,22 +72,30 @@ async def go_back_to_main_menu(message: Message):
     await message.answer("Menu:", reply_markup=startMenu)
 
 
-# description_setting
-@dp.message(Command("toggle_description_settings"))
-@dp.message(lambda message: message.text == "Toggle tasks descriptions 📖")
+@dp.message(
+    lambda message: message.text
+    in ["Turn on tasks descriptions 📖", "Turn off tasks descriptions 📖"]
+)
 async def toggle_description(message: Message):
     new_setting = await toggle_description_optional(message.from_user.id)
     status = "OFF" if new_setting == 1 else "ON"
     await message.answer(f"Descriptions are {status} now.")
 
+    settings_menu = await generate_settings_menu(message.from_user.id)
+    await message.answer("Settings:", reply_markup=settings_menu)
 
-# reminder_settings
-@dp.message(Command("toggle_reminder_settings"))
-@dp.message(lambda message: message.text == "Toggle tasks reminder ⏰")
+
+@dp.message(
+    lambda message: message.text
+    in ["Turn on tasks reminder ⏰", "Turn off tasks reminder ⏰"]
+)
 async def toggle_reminder(message: Message, state: FSMContext):
     new_setting = await toggle_reminder_optional(message.from_user.id)
     status = "ON" if new_setting == 1 else "OFF"
     await message.answer(f"Reminder is {status} now.")
+
+    settings_menu = await generate_settings_menu(message.from_user.id)
+    await message.answer("Settings:", reply_markup=settings_menu)
 
     if new_setting == 1:
         await message.answer("Please send reminder time (HH:MM, Moscow time).")
@@ -147,95 +118,74 @@ async def set_reminder_time(message: Message, state: FSMContext):
     await state.clear()
 
 
-# show tasks
+# add task
+@dp.message(Command("add_task"))
+@dp.message(lambda message: message.text == "Add task ➕")
+async def init_add_task(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Send me the task!", reply_markup=cancel_markup)
+    await state.set_state(TaskStates.waiting_for_task_name)
+
+
+@dp.message(TaskStates.waiting_for_task_name)
+async def add_task_name(message: Message, state: FSMContext):
+    await state.update_data(task_name=message.text)
+    user_settings = await get_user_settings(message.from_user.id)
+    description_optional = user_settings["description_optional"]
+
+    if description_optional:
+        await insert_task(message.from_user.id, message.text, "")
+        await message.answer("Task added successfully!")
+        await state.clear()
+    else:
+        await message.answer("Now send me description!", reply_markup=cancel_markup)
+        await state.set_state(TaskStates.waiting_for_task_description)
+
+
+@dp.message(TaskStates.waiting_for_task_description)
+async def add_task_description(message: Message, state: FSMContext):
+    data = await state.get_data()
+    await insert_task(message.from_user.id, data["task_name"], message.text)
+    await message.answer("Task added successfully!")
+    await state.clear()
+
+
+# view task - displays task name and description (or placeholder if empty)
 @dp.message(Command("show_tasks"))
 @dp.message(lambda message: message.text == "Show tasks 📋")
 async def show_tasks(message: Message):
     tasks = await get_tasks(message.from_user.id)
-
     if not tasks:
         await message.answer("You have no tasks yet.")
         return
 
-    user_settings = await get_user_settings(message.from_user.id)
-    description_optional = user_settings["description_optional"]
-
     inline_keyboard = []
-
     for task in tasks:
-        task_id, task_name, _, status = task
-        status_emoji = "❌" if status == 0 else "✅"
-
-        if description_optional:
-            task_button = InlineKeyboardButton(
-                text=f"{task_name}", callback_data="no_action"
-            )
-        else:
-            task_button = InlineKeyboardButton(
-                text=f"{task_name}", callback_data=f"view_{task_id}"
-            )
-
-        complete_button = InlineKeyboardButton(
-            text=status_emoji, callback_data=f"complete_{task_id}"
+        task_id, task_name, task_description, status = task
+        task_button = InlineKeyboardButton(
+            text=f"{task_name}", callback_data=f"view_task_{task_id}"
         )
-
         edit_button = InlineKeyboardButton(
-            text="⚙️", callback_data=f"edit_task_{task_id}"
+            text="✏️ Edit", callback_data=f"edit_task_{task_id}"
         )
-
-        inline_keyboard.append([task_button, complete_button, edit_button])
+        complete_button = InlineKeyboardButton(
+            text="✅ Complete", callback_data=f"complete_task_{task_id}"
+        )
+        inline_keyboard.append([task_button, edit_button, complete_button])
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
-
     await message.answer("Your tasks:", reply_markup=keyboard)
 
 
-async def process_view_task(callback_query):
-    task_id = callback_query.data.split("_")[1]
-
-    task = await get_task_description(task_id)
-    if task:
-        await callback_query.message.answer(f"Description: {task[0][0]}")
-    else:
-        await callback_query.message.answer("Task cannot be found.")
-
-
-async def process_complete_task(callback_query):
-    task_id = callback_query.data.split("_")[1]
-
-    task = await get_single_task(task_id)
-
-    if task:
-        task_name, current_status = task
-        new_status = 1 if current_status == 0 else 0
-        await update_task_status(task_id, new_status)
-        status_emoji = "✅" if new_status == 1 else "❌"
-        task_button = InlineKeyboardButton(
-            text=f"{task_name}", callback_data=f"view_{task_id}"
-        )
-        complete_button = InlineKeyboardButton(
-            text=status_emoji, callback_data=f"complete_{task_id}"
-        )
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[task_button, complete_button]]
-        )
-
-        await callback_query.message.edit_text("Your tasks:", reply_markup=keyboard)
-        await callback_query.answer()
-    else:
-        callback_query.answer("Task not found.")
-
-
 @dp.callback_query(lambda c: c.data and c.data.startswith("edit_task_"))
-async def process_edit_task(callback_query, state: FSMContext):
+async def edit_task(callback_query: CallbackQuery, state: FSMContext):
     task_id = callback_query.data.split("_")[2]
     task = await get_single_task(task_id)
 
     if task:
         await state.update_data(task_id=task_id)
         await callback_query.message.answer(
-            f"Current task name: {task[0]}\nSend a new task name"
+            f"Current task name: {task[0]}\nPlease send a new task name."
         )
         await state.set_state(TaskStates.waiting_for_task_edit)
     else:
@@ -245,15 +195,46 @@ async def process_edit_task(callback_query, state: FSMContext):
 
 @dp.message(TaskStates.waiting_for_task_edit)
 async def save_edited_task(message: Message, state: FSMContext):
-    new_task_name = message.text
     data = await state.get_data()
-
     task_id = data["task_id"]
+    new_task_name = message.text
 
     await set_task_name(task_id, new_task_name)
-
     await message.answer(f"Task updated to: {new_task_name}")
     await state.clear()
+
+
+# complete task - marks task as complete/incomplete and updates button status
+@dp.callback_query(lambda c: c.data and c.data.startswith("complete_task_"))
+async def complete_task(callback_query: CallbackQuery):
+    task_id = callback_query.data.split("_")[2]
+    task = await get_single_task(task_id)
+
+    if task:
+        task_name, _, current_status = task
+        new_status = 1 if current_status == 0 else 0
+        await update_task_status(task_id, new_status)
+        await callback_query.message.edit_reply_markup(
+            reply_markup=None
+        )
+        await callback_query.message.answer(
+            f"Task '{task_name}' marked as {'completed' if new_status == 1 else 
+                                            'incomplete'}."
+        )
+    else:
+        await callback_query.answer("Task not found.")
+
+
+@dp.callback_query(lambda c: c.data and c.data.startswith("view_task_"))
+async def view_task(callback_query):
+    task_id = callback_query.data.split("_")[2]
+    task = await get_single_task(task_id)
+    if task:
+        name, description, _ = task
+        await callback_query.message.answer(f"{name}\n{description}\n")
+    else:
+        await callback_query.message.answer("Task not found.")
+    await callback_query.answer()
 
 
 # Notifications
@@ -403,7 +384,8 @@ async def show_notifications(message: Message):
         )
 
         notification_button = InlineKeyboardButton(
-            text=f"{name} | {date} | {time}", callback_data=f"view_{notification_id}"
+            text=f"{name} | {date} | {time}",
+            callback_data=f"view_notification_{notification_id}",
         )
 
         inline_keyboard.append([notification_button, edit_button, complete_button])
@@ -413,7 +395,7 @@ async def show_notifications(message: Message):
     await message.answer("Your notifications:", reply_markup=keyboard)
 
 
-@dp.callback_query(lambda c: c.data and c.data.startswith("view_"))
+@dp.callback_query(lambda c: c.data and c.data.startswith("view_notification_"))
 async def view_notification(callback_query):
     notification_id = callback_query.data.split("_")[1]
     notification = await get_single_notification(notification_id)
@@ -535,15 +517,6 @@ async def cancel_action(callback_query: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback_query.message.answer("Cancelled!", reply_markup=startMenu)
     await callback_query.answer()
-
-
-# callback register
-dp.callback_query.register(
-    process_view_task, lambda c: c.data and c.data.startswith("view_")
-)
-dp.callback_query.register(
-    process_complete_task, lambda c: c.data and c.data.startswith("complete_")
-)
 
 
 async def on_startup():
