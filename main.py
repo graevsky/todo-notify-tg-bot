@@ -24,6 +24,7 @@ from utils.db.db import (
 from states import TaskStates, ReminderStates, NotificationStates
 from menus import startMenu, cancel_markup
 from utils.dynamic_keyboard import generate_settings_menu
+from pytz import timezone
 
 
 import os
@@ -214,9 +215,7 @@ async def complete_task(callback_query: CallbackQuery):
         task_name, _, current_status = task
         new_status = 1 if current_status == 0 else 0
         await update_task_status(task_id, new_status)
-        await callback_query.message.edit_reply_markup(
-            reply_markup=None
-        )
+        await callback_query.message.edit_reply_markup(reply_markup=None)
         await callback_query.message.answer(
             f"Task '{task_name}' marked as {'completed' if new_status == 1 else 
                                             'incomplete'}."
@@ -327,40 +326,50 @@ async def set_notification_date(message: Message, state: FSMContext):
         await message.answer("Cancelled!", reply_markup=startMenu)
         return
 
+    moscow_tz = timezone("Europe/Moscow")
+    now = datetime.now(moscow_tz)
+
+    data = await state.get_data()
+    reminder_time = data.get("notification_time", "00:00")
+
     if message.text.lower() == "tomorrow":
-        notification_date = (datetime.now() + timedelta(days=1)).strftime("%d.%m.%Y")
+        notification_date = (now + timedelta(days=1)).strftime("%d.%m.%Y")
     elif message.text.lower() == "in 3 days":
-        notification_date = (datetime.now() + timedelta(days=3)).strftime("%d.%m.%Y")
+        notification_date = (now + timedelta(days=3)).strftime("%d.%m.%Y")
     elif message.text.lower() == "next week":
-        notification_date = (datetime.now() + timedelta(days=7)).strftime("%d.%m.%Y")
+        notification_date = (now + timedelta(days=7)).strftime("%d.%m.%Y")
     else:
         try:
-            notification_date = datetime.strptime(message.text, "%d.%m").replace(
-                year=datetime.now().year
-            )
-            
-            if notification_date < datetime.now():
-                notification_date = notification_date.replace(
-                    year=notification_date.year + 1
-                )
+            input_date = datetime.strptime(message.text, "%d.%m").replace(year=now.year)
+            reminder_time_object = datetime.strptime(reminder_time, "%H:%M").time()
+
+            input_date = datetime.combine(input_date, reminder_time_object)
+            input_date = moscow_tz.localize(input_date)
+
+            if input_date < now:
+                input_date = input_date.replace(year=now.year + 1)
+
+            notification_date = input_date.strftime("%d.%m.%Y")
         except ValueError:
             await message.answer(
                 "Invalid date format. Please enter in DD.MM format or choose a preset."
             )
             return
-    тotification_date_str = notification_date.strftime("%d.%m.%Y")
-    await state.update_data(notification_date=тotification_date_str)
+
+    await state.update_data(notification_date=notification_date)
     data = await state.get_data()
     await insert_notification(
         message.from_user.id,
         data["notification_name"],
-        тotification_date_str,
+        notification_date,
         data["notification_time"],
     )
 
     await message.answer(
-        f"""Reminder '{data['notification_name']}' 
-        set for {data['notification_date']} at {data['notification_time']}""",
+        f"""
+        Reminder '{data['notification_name']}' set for {notification_date}
+        at {data['notification_time']}
+        """.replace('\n', ' ').strip(),
         reply_markup=startMenu,
     )
     await state.clear()
@@ -400,7 +409,7 @@ async def show_notifications(message: Message):
 
 @dp.callback_query(lambda c: c.data and c.data.startswith("view_notification_"))
 async def view_notification(callback_query):
-    notification_id = callback_query.data.split("_")[1]
+    notification_id = callback_query.data.split("_")[2]
     notification = await get_single_notification(notification_id)
 
     if notification:

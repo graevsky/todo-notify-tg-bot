@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 import pytz
+from cryptography.fernet import Fernet
 
 
 load_dotenv()
@@ -11,6 +12,17 @@ load_dotenv()
 DB_FILE = os.getenv("DB_FILENAME")
 time_format = "%H:%M"
 db_clear_period = int(os.getenv("DB_CLEAR_PERIOD"))
+
+
+def get_encryption_key():
+    key = os.getenv("FERNET_KEY")
+    if not key:
+        key = Fernet.generate_key()
+        print(f"Generated encryption key: {key.decode()}")
+    return Fernet(key)
+
+
+fernet = get_encryption_key()
 
 
 async def db_init():
@@ -38,6 +50,14 @@ async def db_init():
             is_active INTEGER DEFAULT 1)"""
         )
         await db.commit()
+
+
+def encrypt_text(text):
+    return fernet.encrypt(text.encode()).decode()
+
+
+def decrypt_text(encrypted_text):
+    return fernet.decrypt(encrypted_text.encode()).decode()
 
 
 # Settings
@@ -123,7 +143,9 @@ async def reminder_scheduler(bot):
                 if tasks:
                     await bot.send_message(user_id, "Your tasks for today:")
                     for task in tasks:
-                        task_text = f"{task[1]} {'✅' if task[3] == 1 else '❌'}"
+                        task_name = task[1]
+                        task_status = "✅" if task[3] == 1 else "❌"
+                        task_text = f"{task_name} {task_status}"
                         await bot.send_message(user_id, task_text)
 
         await asyncio.sleep(60)
@@ -144,7 +166,9 @@ async def notification_scheduler(bot):
 
         if notifications:
             for notification in notifications:
-                notification_id, user_id, notification_name = notification
+                notification_id, user_id, encrypted_name = notification
+
+                notification_name = decrypt_text(encrypted_name)
 
                 await bot.send_message(user_id, f"Reminder: {notification_name}")
 
@@ -161,11 +185,20 @@ async def notification_scheduler(bot):
 async def get_tasks(user_id):
     async with aiosqlite.connect(DB_FILE) as db:
         tasks = await db.execute_fetchall(
-            """SELECT id, task, description,
-            status FROM tasks where user_id = ? AND status = 0""",
+            """SELECT id, task, description, status
+            FROM tasks WHERE user_id = ? AND status = 0""",
             (user_id,),
         )
-        return tasks
+        decrypted_tasks = [
+            (
+                task[0],
+                decrypt_text(task[1]),
+                decrypt_text(task[2]) if task[2] else "",
+                task[3],
+            )
+            for task in tasks
+        ]
+        return decrypted_tasks
 
 
 async def get_single_task(task_id):
@@ -174,7 +207,13 @@ async def get_single_task(task_id):
             "SELECT task, description, status FROM tasks WHERE id = ?", (task_id,)
         ) as cursor:
             task = await cursor.fetchone()
-        return task
+        if task:
+            return (
+                decrypt_text(task[0]),
+                decrypt_text(task[1]) if task[1] else "",
+                task[2],
+            )
+        return None
 
 
 async def update_task_status(task_id, new_status):
@@ -186,24 +225,21 @@ async def update_task_status(task_id, new_status):
 
 
 async def set_task_name(task_id, task_name):
+    encrypted_task_name = encrypt_text(task_name)
     async with aiosqlite.connect(DB_FILE) as db:
-        await db.execute("UPDATE tasks SET task = ? WHERE id = ?", (task_name, task_id))
+        await db.execute(
+            "UPDATE tasks SET task = ? WHERE id = ?", (encrypted_task_name, task_id)
+        )
         await db.commit()
 
 
-async def get_task_description(task_id):
-    async with aiosqlite.connect(DB_FILE) as db:
-        task = await db.execute_fetchall(
-            "SELECT description FROM tasks WHERE id = ?", (task_id,)
-        )
-        return task
-
-
 async def insert_task(user_id, task, description):
+    encrypted_task = encrypt_text(task)
+    encrypted_description = encrypt_text(description) if description else ""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute(
             "INSERT INTO tasks (user_id, task, description) VALUES (?, ?, ?)",
-            (user_id, task, description),
+            (user_id, encrypted_task, encrypted_description),
         )
         await db.commit()
 
@@ -216,7 +252,16 @@ async def get_notifications(user_id):
             WHERE user_id = ? AND is_active = 1""",
             (user_id,),
         )
-        return notifications
+        decrypted_notifications = [
+            (
+                notification[0],
+                decrypt_text(notification[1]),
+                notification[2],
+                notification[3],
+            )
+            for notification in notifications
+        ]
+        return decrypted_notifications
 
 
 async def get_single_notification(notification_id):
@@ -226,18 +271,30 @@ async def get_single_notification(notification_id):
             FROM notifications WHERE id = ?""",
             (notification_id,),
         )
-        return await cursor.fetchone()
+        notification = await cursor.fetchone()
+
+        if notification:
+            encrypted_name = notification[0]
+            decrypted_name = decrypt_text(encrypted_name)
+            return (decrypted_name, notification[1], notification[2])
 
 
 async def insert_notification(
     user_id, notification_name, notification_date, notification_time
 ):
+    encrypted_notification_name = encrypt_text(notification_name)
+
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute(
             """INSERT INTO notifications
             (user_id, notification_name, notification_date, notification_time)
             VALUES (?, ?, ?, ?)""",
-            (user_id, notification_name, notification_date, notification_time),
+            (
+                user_id,
+                encrypted_notification_name,
+                notification_date,
+                notification_time,
+            ),
         )
         await db.commit()
 
@@ -245,7 +302,7 @@ async def insert_notification(
 async def update_notification(notification_id, notification_date, notification_time):
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute(
-            """UPDATE notifications SET notification_date = ?,
+            """UPDATE notifications SET notification_date = ?, 
             notification_time = ? WHERE id = ?""",
             (notification_date, notification_time, notification_id),
         )
