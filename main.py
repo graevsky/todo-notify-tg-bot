@@ -136,7 +136,7 @@ async def add_task_name(message: Message, state: FSMContext):
 
     if description_optional:
         await insert_task(message.from_user.id, message.text, "")
-        await message.answer("Task added successfully!")
+        await message.answer("Task added successfully!", reply_markup=startMenu)
         await state.clear()
     else:
         await message.answer("Now send me description!", reply_markup=cancel_markup)
@@ -147,7 +147,7 @@ async def add_task_name(message: Message, state: FSMContext):
 async def add_task_description(message: Message, state: FSMContext):
     data = await state.get_data()
     await insert_task(message.from_user.id, data["task_name"], message.text)
-    await message.answer("Task added successfully!")
+    await message.answer("Task added successfully!", reply_markup=startMenu)
     await state.clear()
 
 
@@ -366,10 +366,10 @@ async def set_notification_date(message: Message, state: FSMContext):
     )
 
     await message.answer(
-        f"""
-        Reminder '{data['notification_name']}' set for {notification_date}
-        at {data['notification_time']}
-        """.replace('\n', ' ').strip(),
+        (
+            f"Reminder '{data['notification_name']}' set for {notification_date} "
+            f"at {data['notification_time']}"
+        ).strip(),
         reply_markup=startMenu,
     )
     await state.clear()
