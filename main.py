@@ -335,23 +335,26 @@ async def set_notification_date(message: Message, state: FSMContext):
         notification_date = (datetime.now() + timedelta(days=7)).strftime("%d.%m.%Y")
     else:
         try:
-            notification_date = (
-                datetime.strptime(message.text, "%d.%m")
-                .replace(year=datetime.now().year)
-                .strftime("%d.%m.%Y")
+            notification_date = datetime.strptime(message.text, "%d.%m").replace(
+                year=datetime.now().year
             )
+            
+            if notification_date < datetime.now():
+                notification_date = notification_date.replace(
+                    year=notification_date.year + 1
+                )
         except ValueError:
             await message.answer(
                 "Invalid date format. Please enter in DD.MM format or choose a preset."
             )
             return
-
-    await state.update_data(notification_date=notification_date)
+    тotification_date_str = notification_date.strftime("%d.%m.%Y")
+    await state.update_data(notification_date=тotification_date_str)
     data = await state.get_data()
     await insert_notification(
         message.from_user.id,
         data["notification_name"],
-        data["notification_date"],
+        тotification_date_str,
         data["notification_time"],
     )
 
