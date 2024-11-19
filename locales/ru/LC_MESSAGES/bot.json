@@ -1,0 +1,12 @@
+{
+    "menu_title": "Меню:",
+    "settings_title": "Настройки:",
+    "add_task": "Добавить задачу ➕",
+    "show_tasks": "Показать задачи 📋",
+    "add_notification": "Добавить напоминание ⏰",
+    "show_notifications": "Показать напоминания 📅",
+    "settings": "Настройки ⚙️",
+    "back": "Назад 🔙",
+    "cancel": "Отмена 🛇",
+    "task_added": "Задача успешно добавлена!"
+}

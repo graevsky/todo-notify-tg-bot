@@ -1,0 +1,12 @@
+{
+    "menu_title": "Menu:",
+    "settings_title": "Settings:",
+    "add_task": "Add task ➕",
+    "show_tasks": "Show tasks 📋",
+    "add_notification": "Add notification ⏰",
+    "show_notifications": "Show notifications 📅",
+    "settings": "Settings ⚙️",
+    "back": "Back 🔙",
+    "cancel": "Cancel 🛇",
+    "task_added": "Task added successfully!"
+}
