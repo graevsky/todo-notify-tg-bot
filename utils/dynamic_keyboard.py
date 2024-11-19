@@ -1,5 +1,17 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from utils.db.db import get_user_settings
+import gettext
+
+
+def setup_locales(locale: str = "en"):
+    lang = gettext.translation(
+        "bot", localedir="locales", languages=[locale], fallback=True
+    )
+    lang.install()
+    return lang.gettext
+
+
+_ = setup_locales(locale="ru")
 
 
 async def generate_settings_menu(user_id):
@@ -8,22 +20,20 @@ async def generate_settings_menu(user_id):
     reminder_optional = user_settings["reminder_optional"]
 
     description_text = (
-        "Turn on tasks descriptions 📖"
+        _("turn_on_descriptions")
         if description_optional
-        else "Turn off tasks descriptions 📖"
+        else _("turn_off_descriptions")
     )
     reminder_text = (
-        "Turn off tasks reminder ⏰"
-        if reminder_optional
-        else "Turn on tasks reminder ⏰"
+        _("turn_off_reminder") if reminder_optional else _("turn_on_reminder")
     )
 
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=description_text), KeyboardButton(text=reminder_text)],
-            [KeyboardButton(text="Back 🔙")],
+            [KeyboardButton(text=_("back_button"))],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
-        input_field_placeholder="Settings",
+        input_field_placeholder=_("settings_placeholder"),
     )

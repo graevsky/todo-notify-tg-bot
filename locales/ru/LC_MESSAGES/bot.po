@@ -1,0 +1,240 @@
+# Russian translations for PROJECT.
+# Copyright (C) 2024 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2024.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2024-11-20 02:04+0300\n"
+"PO-Revision-Date: 2024-11-20 02:37+0300\n"
+"Last-Translator: \n"
+"Language-Team: ru <LL@li.org>\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"Generated-By: Babel 2.13.1\n"
+"X-Generator: Poedit 3.5\n"
+
+#: main.py:63 main.py:75
+msgid "menu_title"
+msgstr "Меню:"
+
+#: main.py:67 menus.py:23
+msgid "settings_button"
+msgstr "Настройки ⚙️"
+
+#: main.py:70 main.py:84 main.py:93
+msgid "settings"
+msgstr "Настройки:"
+
+#: main.py:73 utils/dynamic_keyboard.py:26
+msgid "back_button"
+msgstr "Назад 🔙"
+
+#: main.py:77 utils/dynamic_keyboard.py:15
+msgid "turn_on_descriptions"
+msgstr "Включить описания заданий 📖"
+
+#: main.py:77 utils/dynamic_keyboard.py:17
+msgid "turn_off_descriptions"
+msgstr "Выключить описания заданий 📖"
+
+#: main.py:80 main.py:89
+msgid "off"
+msgstr "Выкл"
+
+#: main.py:80 main.py:89
+msgid "on"
+msgstr "Вкл"
+
+#: main.py:81
+msgid "description_status"
+msgstr "Описания:"
+
+#: main.py:86 utils/dynamic_keyboard.py:20
+msgid "turn_on_reminder"
+msgstr "Включить ежедневные напоминания ⏰"
+
+#: main.py:86 utils/dynamic_keyboard.py:20
+msgid "turn_off_reminder"
+msgstr "Выключить ежедневные напоминания ⏰"
+
+#: main.py:90
+msgid "reminder_status"
+msgstr "Напоминания: "
+
+#: main.py:96
+msgid "send_reminder_time"
+msgstr "Отправь время рассылки напоминаний (HH:MM, Московское время)"
+
+#: main.py:107 main.py:305 main.py:508
+msgid "invalid_time_format"
+msgstr "Формат времени некорректен"
+
+#: main.py:111
+msgid "reminder_set"
+msgstr "Напоминание установлено на "
+
+#: main.py:116 menus.py:15
+msgid "add_task_button"
+msgstr "Добавить задание ➕"
+
+#: main.py:119
+msgid "send_task_name"
+msgstr "Отправь задание!"
+
+#: main.py:130 main.py:140
+msgid "task_added_success"
+msgstr "Задание добавлено успешно!"
+
+#: main.py:133
+msgid "send_task_description"
+msgstr "Отправь описание задания!"
+
+#: main.py:145 menus.py:16
+msgid "show_tasks_button"
+msgstr "Показать задания 📋"
+
+#: main.py:149
+msgid "no_tasks"
+msgstr "Заданий нет :/"
+
+#: main.py:159 main.py:374
+msgid "edit_button"
+msgstr "✏️ Изменить"
+
+#: main.py:162 main.py:377
+msgid "complete_button"
+msgstr "✅ Завершить"
+
+#: main.py:167
+msgid "your_tasks"
+msgstr "Твои задания:"
+
+#: main.py:177
+msgid "current_task_name"
+msgstr "Текущее задание, пришли новое: "
+
+#: main.py:181 main.py:212 main.py:223
+msgid "task_not_found"
+msgstr "Задание не найдено ;c"
+
+#: main.py:191
+msgid "task_updated"
+msgstr "Задание обновлено!"
+
+#: main.py:206
+msgid "task_marked"
+msgstr "Задание "
+
+#: main.py:208
+msgid "completed"
+msgstr " завершено"
+
+#: main.py:208
+msgid "incomplete"
+msgstr " не завершено"
+
+#: main.py:227 menus.py:19
+msgid "add_notification_button"
+msgstr "Добавить напоминание ⏰"
+
+#: main.py:230
+msgid "send_notification_name"
+msgstr "Отправь напоминание!"
+
+#: main.py:239
+msgid "send_notification_time"
+msgstr ""
+"Отправь время напоминания (HH:MM, Московское время) или выбери из "
+"пресетов!"
+
+#: main.py:243 main.py:259
+msgid "preset_in_1_hour"
+msgstr "Через 1 час"
+
+#: main.py:248 main.py:280 main.py:297 main.py:309 main.py:438 main.py:452
+#: main.py:488 main.py:499 menus.py:32
+msgid "cancel_button"
+msgstr "Отмена  🛇"
+
+#: main.py:272 main.py:352
+msgid "notification_set"
+msgstr "Напоминание установлено "
+
+#: main.py:282 main.py:311 main.py:454 main.py:501 main.py:528
+msgid "cancelled"
+msgstr "Отменено."
+
+#: main.py:289
+msgid "send_notification_date"
+msgstr "Отправь дату напоминания (DD.MM) или выбери из пресетов!"
+
+#: main.py:293 main.py:320 main.py:434 main.py:460
+msgid "preset_tomorrow"
+msgstr "Завтра"
+
+#: main.py:294 main.py:322 main.py:435 main.py:462
+msgid "preset_in_3_days"
+msgstr "Через 3 дня"
+
+#: main.py:295 main.py:324 main.py:436 main.py:464
+msgid "preset_next_week"
+msgstr "Через неделю"
+
+#: main.py:339 main.py:475
+msgid "invalid_date_format"
+msgstr "Формат даты некорректен"
+
+#: main.py:361 menus.py:20
+msgid "show_notifications_button"
+msgstr "Просмотреть напоминания  📅"
+
+#: main.py:366
+msgid "no_notifications"
+msgstr "Напоминаний нет :/"
+
+#: main.py:390
+msgid "your_notifications"
+msgstr "Твои напоминания:"
+
+#: main.py:400
+msgid "notification_details"
+msgstr "Напоминание: "
+
+#: main.py:403 main.py:417 main.py:446
+msgid "notification_not_found"
+msgstr "Напоминание не найдено ;c"
+
+#: main.py:415
+msgid "notification_completed"
+msgstr "Напоминание выполнено."
+
+#: main.py:430
+msgid "current_notification_name"
+msgstr "Текущее имя напоминания:"
+
+#: main.py:480
+msgid "send_notification_new_time"
+msgstr "Пришли новое время"
+
+#: main.py:517
+msgid "notification_updated"
+msgstr "Напоминание обновлено"
+
+#: main.py:534
+msgid "database_initialized"
+msgstr "Database initialized"
+
+#: menus.py:28
+msgid "menu_placeholder"
+msgstr "Меню"
+
+#: utils/dynamic_keyboard.py:30
+msgid "settings_placeholder"
+msgstr "Настройки"

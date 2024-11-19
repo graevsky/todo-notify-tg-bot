@@ -1,0 +1,237 @@
+# English translations for PROJECT.
+# Copyright (C) 2024 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2024.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2024-11-20 02:04+0300\n"
+"PO-Revision-Date: 2024-11-20 02:37+0300\n"
+"Last-Translator: \n"
+"Language-Team: en <LL@li.org>\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Generated-By: Babel 2.13.1\n"
+"X-Generator: Poedit 3.5\n"
+
+#: main.py:63 main.py:75
+msgid "menu_title"
+msgstr "Menu:"
+
+#: main.py:67 menus.py:23
+msgid "settings_button"
+msgstr "Settings ⚙️"
+
+#: main.py:70 main.py:84 main.py:93
+msgid "settings"
+msgstr "Settings:"
+
+#: main.py:73 utils/dynamic_keyboard.py:26
+msgid "back_button"
+msgstr "Back 🔙"
+
+#: main.py:77 utils/dynamic_keyboard.py:15
+msgid "turn_on_descriptions"
+msgstr "Turn on tasks descriptions 📖"
+
+#: main.py:77 utils/dynamic_keyboard.py:17
+msgid "turn_off_descriptions"
+msgstr "Turn off tasks descriptions 📖"
+
+#: main.py:80 main.py:89
+msgid "off"
+msgstr "OFF"
+
+#: main.py:80 main.py:89
+msgid "on"
+msgstr "ON"
+
+#: main.py:81
+msgid "description_status"
+msgstr "Descriptions:"
+
+#: main.py:86 utils/dynamic_keyboard.py:20
+msgid "turn_on_reminder"
+msgstr "Turn on tasks reminder ⏰"
+
+#: main.py:86 utils/dynamic_keyboard.py:20
+msgid "turn_off_reminder"
+msgstr "Turn off tasks reminder ⏰"
+
+#: main.py:90
+msgid "reminder_status"
+msgstr "Reminder:"
+
+#: main.py:96
+msgid "send_reminder_time"
+msgstr "Please send reminder time (HH:MM, Moscow time)."
+
+#: main.py:107 main.py:305 main.py:508
+msgid "invalid_time_format"
+msgstr "Invalid format. Please send in HH:MM format."
+
+#: main.py:111
+msgid "reminder_set"
+msgstr "Reminder set for"
+
+#: main.py:116 menus.py:15
+msgid "add_task_button"
+msgstr "Add task ➕"
+
+#: main.py:119
+msgid "send_task_name"
+msgstr "Send me the task!"
+
+#: main.py:130 main.py:140
+msgid "task_added_success"
+msgstr "Task added successfully!"
+
+#: main.py:133
+msgid "send_task_description"
+msgstr "Now send me description!"
+
+#: main.py:145 menus.py:16
+msgid "show_tasks_button"
+msgstr "Show tasks 📋"
+
+#: main.py:149
+msgid "no_tasks"
+msgstr "You have no tasks yet."
+
+#: main.py:159 main.py:374
+msgid "edit_button"
+msgstr "✏️ Edit"
+
+#: main.py:162 main.py:377
+msgid "complete_button"
+msgstr "✅ Complete"
+
+#: main.py:167
+msgid "your_tasks"
+msgstr "Your tasks:"
+
+#: main.py:177
+msgid "current_task_name"
+msgstr "Current task name:"
+
+#: main.py:181 main.py:212 main.py:223
+msgid "task_not_found"
+msgstr "Task not found."
+
+#: main.py:191
+msgid "task_updated"
+msgstr "Task updated to:"
+
+#: main.py:206
+msgid "task_marked"
+msgstr "Task marked as:"
+
+#: main.py:208
+msgid "completed"
+msgstr "completed"
+
+#: main.py:208
+msgid "incomplete"
+msgstr "incomplete"
+
+#: main.py:227 menus.py:19
+msgid "add_notification_button"
+msgstr "Add notification ⏰"
+
+#: main.py:230
+msgid "send_notification_name"
+msgstr "Send me the notification name."
+
+#: main.py:239
+msgid "send_notification_time"
+msgstr "Please send me the time in HH:MM format or choose one of the presets:"
+
+#: main.py:243 main.py:259
+msgid "preset_in_1_hour"
+msgstr "In 1 hour"
+
+#: main.py:248 main.py:280 main.py:297 main.py:309 main.py:438 main.py:452
+#: main.py:488 main.py:499 menus.py:32
+msgid "cancel_button"
+msgstr "Cancel 🛇"
+
+#: main.py:272 main.py:352
+msgid "notification_set"
+msgstr "Reminder set for"
+
+#: main.py:282 main.py:311 main.py:454 main.py:501 main.py:528
+msgid "cancelled"
+msgstr "Cancelled!"
+
+#: main.py:289
+msgid "send_notification_date"
+msgstr "Please send me the date in DD.MM format or choose from presets:"
+
+#: main.py:293 main.py:320 main.py:434 main.py:460
+msgid "preset_tomorrow"
+msgstr "Tomorrow"
+
+#: main.py:294 main.py:322 main.py:435 main.py:462
+msgid "preset_in_3_days"
+msgstr "In 3 days"
+
+#: main.py:295 main.py:324 main.py:436 main.py:464
+msgid "preset_next_week"
+msgstr "Next week"
+
+#: main.py:339 main.py:475
+msgid "invalid_date_format"
+msgstr "Invalid time format. Please enter in HH:MM format or choose a preset."
+
+#: main.py:361 menus.py:20
+msgid "show_notifications_button"
+msgstr "Show notifications 📅"
+
+#: main.py:366
+msgid "no_notifications"
+msgstr "You have no active notifications."
+
+#: main.py:390
+msgid "your_notifications"
+msgstr "Your notifications:"
+
+#: main.py:400
+msgid "notification_details"
+msgstr "Notification:"
+
+#: main.py:403 main.py:417 main.py:446
+msgid "notification_not_found"
+msgstr "Notification not found."
+
+#: main.py:415
+msgid "notification_completed"
+msgstr "Notification completed."
+
+#: main.py:430
+msgid "current_notification_name"
+msgstr "Current notification name:"
+
+#: main.py:480
+msgid "send_notification_new_time"
+msgstr "Please send me the new date in DD.MM format or choose from presets:"
+
+#: main.py:517
+msgid "notification_updated"
+msgstr "Notification updated:"
+
+#: main.py:534
+msgid "database_initialized"
+msgstr "Database initialized"
+
+#: menus.py:28
+msgid "menu_placeholder"
+msgstr "Menu"
+
+#: utils/dynamic_keyboard.py:30
+msgid "settings_placeholder"
+msgstr "Settings"

@@ -26,7 +26,6 @@ from menus import startMenu, cancel_markup
 from utils.dynamic_keyboard import generate_settings_menu
 from pytz import timezone
 
-
 import os
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
@@ -43,9 +42,20 @@ from aiogram.types import (
 )
 
 from datetime import datetime, timedelta
-
+import gettext
 
 load_dotenv()
+
+
+def setup_locales(locale: str = "en"):
+    lang = gettext.translation(
+        "bot", localedir="locales", languages=[locale], fallback=True
+    )
+    lang.install()
+    return lang.gettext
+
+
+_ = setup_locales(locale="ru")
 
 # bot init
 bot = Bot(token=os.getenv("TOKEN"))
@@ -56,50 +66,49 @@ dp = Dispatcher(storage=storage)
 # start
 @dp.message(Command("start"))
 async def start_command(message: Message):
-    await message.answer("Menu:", reply_markup=startMenu)
+    await message.answer(_("menu_title"), reply_markup=startMenu)
 
 
 # settings
 @dp.message(Command("settings"))
-@dp.message(lambda message: message.text == "Settings ⚙️")
+@dp.message(lambda message: message.text == _("settings_button"))
 async def show_settings(message: Message):
     settings_menu = await generate_settings_menu(message.from_user.id)
-    await message.answer("Settings:", reply_markup=settings_menu)
+    await message.answer(_("settings"), reply_markup=settings_menu)
 
 
 @dp.message(Command("back"))
-@dp.message(lambda message: message.text == "Back 🔙")
+@dp.message(lambda message: message.text == _("back_button"))
 async def go_back_to_main_menu(message: Message):
-    await message.answer("Menu:", reply_markup=startMenu)
+    await message.answer(_("menu_title"), reply_markup=startMenu)
 
 
 @dp.message(
     lambda message: message.text
-    in ["Turn on tasks descriptions 📖", "Turn off tasks descriptions 📖"]
+    in [_("turn_on_descriptions"), _("turn_off_descriptions")]
 )
 async def toggle_description(message: Message):
     new_setting = await toggle_description_optional(message.from_user.id)
-    status = "OFF" if new_setting == 1 else "ON"
-    await message.answer(f"Descriptions are {status} now.")
+    status = _("off") if new_setting == 1 else _("on")
+    await message.answer(_("description_status").format(status=status))
 
     settings_menu = await generate_settings_menu(message.from_user.id)
-    await message.answer("Settings:", reply_markup=settings_menu)
+    await message.answer(_("settings"), reply_markup=settings_menu)
 
 
 @dp.message(
-    lambda message: message.text
-    in ["Turn on tasks reminder ⏰", "Turn off tasks reminder ⏰"]
+    lambda message: message.text in [_("turn_on_reminder"), _("turn_off_reminder")]
 )
 async def toggle_reminder(message: Message, state: FSMContext):
     new_setting = await toggle_reminder_optional(message.from_user.id)
-    status = "ON" if new_setting == 1 else "OFF"
-    await message.answer(f"Reminder is {status} now.")
+    status = _("on") if new_setting == 1 else _("off")
+    await message.answer(_("reminder_status").format(status=status))
 
     settings_menu = await generate_settings_menu(message.from_user.id)
-    await message.answer("Settings:", reply_markup=settings_menu)
+    await message.answer(_("settings"), reply_markup=settings_menu)
 
     if new_setting == 1:
-        await message.answer("Please send reminder time (HH:MM, Moscow time).")
+        await message.answer(_("send_reminder_time"))
         await state.set_state(ReminderStates.waiting_for_reminder_time)
 
 
@@ -111,20 +120,20 @@ async def set_reminder_time(message: Message, state: FSMContext):
     try:
         time.strptime(reminder_time, "%H:%M")
     except ValueError:
-        await message.answer("Invalid format. Please send in HH:MM format.")
+        await message.answer(_("invalid_time_format"))
         return
 
     await update_reminder_time(message.from_user.id, reminder_time)
-    await message.answer(f"Reminder set for {reminder_time} daily.")
+    await message.answer(_("reminder_set").format(reminder_time=reminder_time))
     await state.clear()
 
 
 # add task
 @dp.message(Command("add_task"))
-@dp.message(lambda message: message.text == "Add task ➕")
+@dp.message(lambda message: message.text == _("add_task_button"))
 async def init_add_task(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("Send me the task!", reply_markup=cancel_markup)
+    await message.answer(_("send_task_name"), reply_markup=cancel_markup)
     await state.set_state(TaskStates.waiting_for_task_name)
 
 
@@ -136,10 +145,10 @@ async def add_task_name(message: Message, state: FSMContext):
 
     if description_optional:
         await insert_task(message.from_user.id, message.text, "")
-        await message.answer("Task added successfully!", reply_markup=startMenu)
+        await message.answer(_("task_added_success"), reply_markup=startMenu)
         await state.clear()
     else:
-        await message.answer("Now send me description!", reply_markup=cancel_markup)
+        await message.answer(_("send_task_description"), reply_markup=cancel_markup)
         await state.set_state(TaskStates.waiting_for_task_description)
 
 
@@ -147,17 +156,17 @@ async def add_task_name(message: Message, state: FSMContext):
 async def add_task_description(message: Message, state: FSMContext):
     data = await state.get_data()
     await insert_task(message.from_user.id, data["task_name"], message.text)
-    await message.answer("Task added successfully!", reply_markup=startMenu)
+    await message.answer(_("task_added_success"), reply_markup=startMenu)
     await state.clear()
 
 
 # view task - displays task name and description (or placeholder if empty)
 @dp.message(Command("show_tasks"))
-@dp.message(lambda message: message.text == "Show tasks 📋")
+@dp.message(lambda message: message.text == _("show_tasks_button"))
 async def show_tasks(message: Message):
     tasks = await get_tasks(message.from_user.id)
     if not tasks:
-        await message.answer("You have no tasks yet.")
+        await message.answer(_("no_tasks"))
         return
 
     inline_keyboard = []
@@ -167,15 +176,15 @@ async def show_tasks(message: Message):
             text=f"{task_name}", callback_data=f"view_task_{task_id}"
         )
         edit_button = InlineKeyboardButton(
-            text="✏️ Edit", callback_data=f"edit_task_{task_id}"
+            text=_("edit_button"), callback_data=f"edit_task_{task_id}"
         )
         complete_button = InlineKeyboardButton(
-            text="✅ Complete", callback_data=f"complete_task_{task_id}"
+            text=_("complete_button"), callback_data=f"complete_task_{task_id}"
         )
         inline_keyboard.append([task_button, edit_button, complete_button])
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
-    await message.answer("Your tasks:", reply_markup=keyboard)
+    await message.answer(_("your_tasks"), reply_markup=keyboard)
 
 
 @dp.callback_query(lambda c: c.data and c.data.startswith("edit_task_"))
@@ -186,11 +195,11 @@ async def edit_task(callback_query: CallbackQuery, state: FSMContext):
     if task:
         await state.update_data(task_id=task_id)
         await callback_query.message.answer(
-            f"Current task name: {task[0]}\nPlease send a new task name."
+            _("current_task_name").format(task_name=task[0])
         )
         await state.set_state(TaskStates.waiting_for_task_edit)
     else:
-        await callback_query.message.answer("Task not found.")
+        await callback_query.message.answer(_("task_not_found"))
     await callback_query.answer()
 
 
@@ -201,7 +210,7 @@ async def save_edited_task(message: Message, state: FSMContext):
     new_task_name = message.text
 
     await set_task_name(task_id, new_task_name)
-    await message.answer(f"Task updated to: {new_task_name}")
+    await message.answer(_("task_updated").format(task_name=new_task_name))
     await state.clear()
 
 
@@ -217,13 +226,16 @@ async def complete_task(callback_query: CallbackQuery):
         await update_task_status(task_id, new_status)
         await callback_query.message.edit_reply_markup(reply_markup=None)
         await callback_query.message.answer(
-            f"""Task '{task_name}' marked as {'completed' if new_status == 1 else 
-                                            'incomplete'}."""
+            _("task_marked").format(
+                task_name=task_name,
+                status=_("completed") if new_status == 1 else _("incomplete"),
+            )
         )
     else:
-        await callback_query.answer("Task not found.")
+        await callback_query.answer(_("task_not_found"))
 
 
+# from here
 @dp.callback_query(lambda c: c.data and c.data.startswith("view_task_"))
 async def view_task(callback_query):
     task_id = callback_query.data.split("_")[2]
@@ -232,15 +244,15 @@ async def view_task(callback_query):
         name, description, _ = task
         await callback_query.message.answer(f"{name}\n{description}\n")
     else:
-        await callback_query.message.answer("Task not found.")
+        await callback_query.message.answer(_("task_not_found"))
     await callback_query.answer()
 
 
 # Notifications
-@dp.message(lambda message: message.text == "Add notification ⏰")
+@dp.message(lambda message: message.text == _("add_notification_button"))
 async def init_add_notification(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("Send me the notification name.", reply_markup=cancel_markup)
+    await message.answer(_("send_notification_name"), reply_markup=cancel_markup)
     await state.set_state(NotificationStates.waiting_for_notification_name)
 
 
@@ -250,16 +262,16 @@ async def set_notification_name(message: Message, state: FSMContext):
     await state.update_data(notification_name=notification_name)
 
     await message.answer(
-        "Please send me the time in HH:MM format or choose one of the presets:",
+        _("send_notification_time"),
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[
                 [
-                    KeyboardButton(text="In 1 hour"),
+                    KeyboardButton(text=_("preset_in_1_hour")),
                     KeyboardButton(text="10:00"),
                     KeyboardButton(text="14:00"),
                     KeyboardButton(text="18:00"),
                 ],
-                [KeyboardButton(text="Отмена 🛇")],
+                [KeyboardButton(text=_("cancel_button"))],
             ],
             resize_keyboard=True,
             one_time_keyboard=True,
@@ -271,7 +283,7 @@ async def set_notification_name(message: Message, state: FSMContext):
 @dp.message(NotificationStates.waiting_for_notification_time)
 async def set_notification_time(message: Message, state: FSMContext):
     data = await state.get_data()
-    if message.text.lower() == "in 1 hour":
+    if message.text.lower() == _("preset_in_1_hour").lower():
         notification_time = (datetime.now() + timedelta(hours=1)).strftime("%H:%M")
         notification_date = (datetime.now() + timedelta(hours=1)).strftime("%d.%m.%Y")
         await state.update_data(
@@ -284,29 +296,32 @@ async def set_notification_time(message: Message, state: FSMContext):
             notification_time,
         )
         await message.answer(
-            f"Reminder '{data['notification_name']}' set for {notification_date}"
-            f" at {notification_time}",
+            _("notification_set").format(
+                name=data["notification_name"],
+                date=notification_date,
+                time=notification_time,
+            ),
             reply_markup=startMenu,
         )
         await state.clear()
-    elif message.text.lower() == "отмена 🛇":
+    elif message.text.lower() == _("cancel_button").lower():
         await state.clear()
-        await message.answer("Cancelled!", reply_markup=startMenu)
+        await message.answer(_("cancelled"), reply_markup=startMenu)
     else:
         try:
             time_object = time.strptime(message.text, "%H:%M")
             notification_time = time.strftime("%H:%M", time_object)
             await state.update_data(notification_time=notification_time)
             await message.answer(
-                "Please send me the date in DD.MM format or choose from presets:",
+                _("send_notification_date"),
                 reply_markup=ReplyKeyboardMarkup(
                     keyboard=[
                         [
-                            KeyboardButton(text="Tomorrow"),
-                            KeyboardButton(text="In 3 days"),
-                            KeyboardButton(text="Next week"),
+                            KeyboardButton(text=_("preset_tomorrow")),
+                            KeyboardButton(text=_("preset_in_3_days")),
+                            KeyboardButton(text=_("preset_next_week")),
                         ],
-                        [KeyboardButton(text="Отмена 🛇")],
+                        [KeyboardButton(text=_("cancel_button"))],
                     ],
                     resize_keyboard=True,
                     one_time_keyboard=True,
@@ -314,16 +329,14 @@ async def set_notification_time(message: Message, state: FSMContext):
             )
             await state.set_state(NotificationStates.waiting_for_notification_date)
         except ValueError:
-            await message.answer(
-                "Invalid time format. Please enter in HH:MM format or choose a preset."
-            )
+            await message.answer(_("invalid_time_format"))
 
 
 @dp.message(NotificationStates.waiting_for_notification_date)
 async def set_notification_date(message: Message, state: FSMContext):
-    if message.text.lower() == "отмена 🛇":
+    if message.text.lower() == _("cancel_button").lower():
         await state.clear()
-        await message.answer("Cancelled!", reply_markup=startMenu)
+        await message.answer(_("cancelled"), reply_markup=startMenu)
         return
 
     moscow_tz = timezone("Europe/Moscow")
@@ -332,11 +345,11 @@ async def set_notification_date(message: Message, state: FSMContext):
     data = await state.get_data()
     reminder_time = data.get("notification_time", "00:00")
 
-    if message.text.lower() == "tomorrow":
+    if message.text.lower() == _("preset_tomorrow").lower():
         notification_date = (now + timedelta(days=1)).strftime("%d.%m.%Y")
-    elif message.text.lower() == "in 3 days":
+    elif message.text.lower() == _("preset_in_3_days").lower():
         notification_date = (now + timedelta(days=3)).strftime("%d.%m.%Y")
-    elif message.text.lower() == "next week":
+    elif message.text.lower() == _("preset_next_week").lower():
         notification_date = (now + timedelta(days=7)).strftime("%d.%m.%Y")
     else:
         try:
@@ -351,9 +364,7 @@ async def set_notification_date(message: Message, state: FSMContext):
 
             notification_date = input_date.strftime("%d.%m.%Y")
         except ValueError:
-            await message.answer(
-                "Invalid date format. Please enter in DD.MM format or choose a preset."
-            )
+            await message.answer(_("invalid_date_format"))
             return
 
     await state.update_data(notification_date=notification_date)
@@ -366,21 +377,22 @@ async def set_notification_date(message: Message, state: FSMContext):
     )
 
     await message.answer(
-        (
-            f"Reminder '{data['notification_name']}' set for {notification_date} "
-            f"at {data['notification_time']}"
-        ).strip(),
+        _("notification_set").format(
+            name=data["notification_name"],
+            date=notification_date,
+            time=data["notification_time"],
+        ),
         reply_markup=startMenu,
     )
     await state.clear()
 
 
-@dp.message(lambda message: message.text == "Show notifications 📅")
+@dp.message(lambda message: message.text == _("show_notifications_button"))
 async def show_notifications(message: Message):
     notifications = await get_notifications(message.from_user.id)
 
     if not notifications:
-        await message.answer("You have no active notifications.")
+        await message.answer(_("no_notifications"))
         return
 
     inline_keyboard = []
@@ -388,10 +400,10 @@ async def show_notifications(message: Message):
         notification_id, name, date, time = notification
 
         edit_button = InlineKeyboardButton(
-            text="✏️ Edit", callback_data=f"edit_notification_{notification_id}"
+            text=_("edit_button"), callback_data=f"edit_notification_{notification_id}"
         )
         complete_button = InlineKeyboardButton(
-            text="✅ Complete",
+            text=_("complete_button"),
             callback_data=f"complete_notification_{notification_id}",
         )
 
@@ -404,7 +416,7 @@ async def show_notifications(message: Message):
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
-    await message.answer("Your notifications:", reply_markup=keyboard)
+    await message.answer(_("your_notifications"), reply_markup=keyboard)
 
 
 @dp.callback_query(lambda c: c.data and c.data.startswith("view_notification_"))
@@ -414,19 +426,26 @@ async def view_notification(callback_query):
 
     if notification:
         name, date, time = notification
-        await callback_query.message.answer(f"{name}\n{date}\n{time}")
+        await callback_query.message.answer(
+            _("notification_details").format(name=name, date=date, time=time)
+        )
     else:
-        await callback_query.message.answer("Notification not found.")
+        await callback_query.message.answer(_("notification_not_found"))
 
     await callback_query.answer()
 
 
 @dp.callback_query(lambda c: c.data and c.data.startswith("complete_notification_"))
-async def complete_notification(callback_query):
+async def complete_notification(callback_query: CallbackQuery):
     notification_id = callback_query.data.split("_")[2]
-    await disable_notification(notification_id)
+    notification = await get_single_notification(notification_id)
 
-    await callback_query.message.answer("Notification completed.")
+    if notification:
+        await disable_notification(notification_id)
+        await callback_query.message.answer(_("notification_completed"))
+    else:
+        await callback_query.message.answer(_("notification_not_found"))
+
     await callback_query.answer()
 
 
@@ -438,15 +457,15 @@ async def edit_notification(callback_query, state: FSMContext):
     if notification:
         await state.update_data(notification_id=notification_id)
         await callback_query.message.answer(
-            f"Current notification name: {notification[0]}\n"
-            "Please send me the new date in DD.MM format or choose from presets:",
+            _("current_notification_name").format(name=notification[0]),
             reply_markup=ReplyKeyboardMarkup(
                 keyboard=[
                     [
-                        KeyboardButton(text="Tomorrow"),
-                        KeyboardButton(text="In 3 days"),
-                        KeyboardButton(text="Next week"),
-                    ]
+                        KeyboardButton(text=_("preset_tomorrow")),
+                        KeyboardButton(text=_("preset_in_3_days")),
+                        KeyboardButton(text=_("preset_next_week")),
+                    ],
+                    [KeyboardButton(text=_("cancel_button"))],
                 ],
                 resize_keyboard=True,
                 one_time_keyboard=True,
@@ -454,41 +473,48 @@ async def edit_notification(callback_query, state: FSMContext):
         )
         await state.set_state(NotificationStates.waiting_for_notification_edit_date)
     else:
-        await callback_query.message.answer("Notification not found.")
+        await callback_query.message.answer(_("notification_not_found"))
     await callback_query.answer()
 
 
 @dp.message(NotificationStates.waiting_for_notification_edit_date)
 async def edit_notification_date(message: Message, state: FSMContext):
-    if message.text.lower() == "tomorrow":
-        notification_date = (datetime.now() + timedelta(days=1)).strftime("%d.%m.%Y")
-    elif message.text.lower() == "in 3 days":
-        notification_date = (datetime.now() + timedelta(days=3)).strftime("%d.%m.%Y")
-    elif message.text.lower() == "next week":
-        notification_date = (datetime.now() + timedelta(days=7)).strftime("%d.%m.%Y")
+    if message.text.lower() == _("cancel_button").lower():
+        await state.clear()
+        await message.answer(_("cancelled"), reply_markup=startMenu)
+        return
+
+    now = datetime.now(timezone("Europe/Moscow"))
+
+    if message.text.lower() == _("preset_tomorrow").lower():
+        notification_date = (now + timedelta(days=1)).strftime("%d.%m.%Y")
+    elif message.text.lower() == _("preset_in_3_days").lower():
+        notification_date = (now + timedelta(days=3)).strftime("%d.%m.%Y")
+    elif message.text.lower() == _("preset_next_week").lower():
+        notification_date = (now + timedelta(days=7)).strftime("%d.%m.%Y")
     else:
         try:
             notification_date = datetime.strptime(message.text, "%d.%m").replace(
-                year=datetime.now().year
+                year=now.year
             )
+            if notification_date < now:
+                notification_date = notification_date.replace(year=now.year + 1)
             notification_date = notification_date.strftime("%d.%m.%Y")
         except ValueError:
-            await message.answer(
-                "Invalid date format. Please enter in DD.MM format or choose a preset."
-            )
+            await message.answer(_("invalid_date_format"))
             return
 
     await state.update_data(notification_date=notification_date)
-
     await message.answer(
-        "Please send me the new time in HH:MM format or choose one of the presets:",
+        _("send_notification_new_time"),
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[
                 [
                     KeyboardButton(text="10:00"),
                     KeyboardButton(text="14:00"),
                     KeyboardButton(text="18:00"),
-                ]
+                ],
+                [KeyboardButton(text=_("cancel_button"))],
             ],
             resize_keyboard=True,
             one_time_keyboard=True,
@@ -499,26 +525,27 @@ async def edit_notification_date(message: Message, state: FSMContext):
 
 @dp.message(NotificationStates.waiting_for_notification_edit_time)
 async def edit_notification_time(message: Message, state: FSMContext):
-    if message.text in ["10:00", "14:00", "18:00"]:
-        notification_time = message.text
-    else:
-        try:
-            time_object = time.strptime(message.text, "%H:%M")
-            notification_time = time.strftime("%H:%M", time_object)
-        except ValueError:
-            await message.answer(
-                "Invalid time format. Please enter in HH:MM format or choose a preset."
-            )
-            return
+    if message.text.lower() == _("cancel_button").lower():
+        await state.clear()
+        await message.answer(_("cancelled"), reply_markup=startMenu)
+        return
+
+    try:
+        time_object = time.strptime(message.text, "%H:%M")
+        notification_time = time.strftime("%H:%M", time_object)
+    except ValueError:
+        await message.answer(_("invalid_time_format"))
+        return
 
     data = await state.get_data()
-
     await update_notification(
         data["notification_id"], data["notification_date"], notification_time
     )
 
     await message.answer(
-        f"Notification updated to {data['notification_date']} at {notification_time}",
+        _("notification_updated").format(
+            date=data["notification_date"], time=notification_time
+        ),
         reply_markup=startMenu,
     )
     await state.clear()
@@ -527,13 +554,13 @@ async def edit_notification_time(message: Message, state: FSMContext):
 @dp.callback_query(lambda c: c.data == "cancel_action")
 async def cancel_action(callback_query: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback_query.message.answer("Cancelled!", reply_markup=startMenu)
+    await callback_query.message.answer(_("cancelled"), reply_markup=startMenu)
     await callback_query.answer()
 
 
 async def on_startup():
     await db_init()
-    print("Database initialized")
+    print(_("database_initialized"))
 
 
 async def main():
