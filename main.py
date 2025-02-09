@@ -1,56 +1,53 @@
 import asyncio
-import time
-
-from utils.db.db import (
-    db_init,
-    get_tasks,
-    task_deletion_scheduler,
-    get_user_settings,
-    toggle_description_optional,
-    toggle_reminder_optional,
-    reminder_scheduler,
-    update_reminder_time,
-    notification_scheduler,
-    get_notifications,
-    insert_task,
-    get_single_task,
-    update_task_status,
-    set_task_name,
-    insert_notification,
-    get_single_notification,
-    update_notification,
-    disable_notification,
-)
-from states import TaskStates, ReminderStates, NotificationStates
-from menus import startMenu, cancel_markup
-from utils.dynamic_keyboard import generate_settings_menu
-from pytz import timezone
-
+import gettext
 import os
-from dotenv import load_dotenv
+import time
+from datetime import datetime, timedelta
+
 from aiogram import Bot, Dispatcher
-from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
     CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    Message,
+    ReplyKeyboardMarkup,
 )
+from dotenv import load_dotenv
+from pytz import timezone
 
-from datetime import datetime, timedelta
-import gettext
+from menus import cancel_markup, startMenu
+from states import MainStates, NotificationStates, ReminderStates, TaskStates
+from utils.db.db import (
+    db_init,
+    disable_notification,
+    get_notifications,
+    get_single_notification,
+    get_single_task,
+    get_tasks,
+    get_user_settings,
+    insert_notification,
+    insert_task,
+    notification_scheduler,
+    reminder_scheduler,
+    set_task_name,
+    task_deletion_scheduler,
+    toggle_description_optional,
+    toggle_reminder_optional,
+    update_notification,
+    update_reminder_time,
+    update_task_status,
+)
+from utils.dynamic_keyboard import generate_settings_menu
 
 load_dotenv()
 
 
 def setup_locales(locale: str = "en"):
-    lang = gettext.translation(
-        "bot", localedir="locales", languages=[locale], fallback=True
-    )
+    lang = gettext.translation("bot", localedir="locales", languages=[locale], fallback=True)
     lang.install()
     return lang.gettext
 
@@ -83,10 +80,7 @@ async def go_back_to_main_menu(message: Message):
     await message.answer(_("menu_title"), reply_markup=startMenu)
 
 
-@dp.message(
-    lambda message: message.text
-    in [_("turn_on_descriptions"), _("turn_off_descriptions")]
-)
+@dp.message(lambda message: message.text in [_("turn_on_descriptions"), _("turn_off_descriptions")])
 async def toggle_description(message: Message):
     new_setting = await toggle_description_optional(message.from_user.id)
     status = _("off") if new_setting == 1 else _("on")
@@ -96,9 +90,7 @@ async def toggle_description(message: Message):
     await message.answer(_("settings"), reply_markup=settings_menu)
 
 
-@dp.message(
-    lambda message: message.text in [_("turn_on_reminder"), _("turn_off_reminder")]
-)
+@dp.message(lambda message: message.text in [_("turn_on_reminder"), _("turn_off_reminder")])
 async def toggle_reminder(message: Message, state: FSMContext):
     new_setting = await toggle_reminder_optional(message.from_user.id)
     status = _("on") if new_setting == 1 else _("off")
@@ -125,16 +117,43 @@ async def set_reminder_time(message: Message, state: FSMContext):
 
     await update_reminder_time(message.from_user.id, reminder_time)
     await message.answer(_("reminder_set").format(reminder_time=reminder_time))
-    await state.clear()
+    await state.set_state(MainStates.main_state)
 
 
 # add task
 @dp.message(Command("add_task"))
 @dp.message(lambda message: message.text == _("add_task_button"))
 async def init_add_task(message: Message, state: FSMContext):
-    await state.clear()
+    await state.set_state(MainStates.main_state)
     await message.answer(_("send_task_name"), reply_markup=cancel_markup)
     await state.set_state(TaskStates.waiting_for_task_name)
+
+
+# KB complete
+@dp.message(Command("complete"), state=MainStates.main_state)
+async def kb_complete_task(message: Message):
+    # Get task_id from command arguments
+    try:
+        task_id = message.text.split()[1]
+    except IndexError:
+        await message.answer(_("task_not_found"))
+        return
+
+    task = await get_single_task(task_id)
+
+    if task:
+        task_name, _desc, current_status = task
+        new_status = 1 if current_status == 0 else 0
+        await update_task_status(task_id, new_status)
+        await message.edit_reply_markup(reply_markup=None)
+        await message.answer(
+            _("task_marked").format(
+                task_name=task_name,
+                status=_("completed") if new_status == 1 else _("incomplete"),
+            )
+        )
+    else:
+        await message.answer(_("task_not_found"))
 
 
 @dp.message(TaskStates.waiting_for_task_name)
@@ -146,7 +165,7 @@ async def add_task_name(message: Message, state: FSMContext):
     if description_optional:
         await insert_task(message.from_user.id, message.text, "")
         await message.answer(_("task_added_success"), reply_markup=startMenu)
-        await state.clear()
+        await state.set_state(MainStates.main_state)
     else:
         await message.answer(_("send_task_description"), reply_markup=cancel_markup)
         await state.set_state(TaskStates.waiting_for_task_description)
@@ -157,7 +176,7 @@ async def add_task_description(message: Message, state: FSMContext):
     data = await state.get_data()
     await insert_task(message.from_user.id, data["task_name"], message.text)
     await message.answer(_("task_added_success"), reply_markup=startMenu)
-    await state.clear()
+    await state.set_state(MainStates.main_state)
 
 
 # view task - displays task name and description (or placeholder if empty)
@@ -172,15 +191,9 @@ async def show_tasks(message: Message):
     inline_keyboard = []
     for task in tasks:
         task_id, task_name, task_description, status = task
-        task_button = InlineKeyboardButton(
-            text=f"{task_name}", callback_data=f"view_task_{task_id}"
-        )
-        edit_button = InlineKeyboardButton(
-            text=_("edit_button"), callback_data=f"edit_task_{task_id}"
-        )
-        complete_button = InlineKeyboardButton(
-            text=_("complete_button"), callback_data=f"complete_task_{task_id}"
-        )
+        task_button = InlineKeyboardButton(text=f"{task_name}", callback_data=f"view_task_{task_id}")
+        edit_button = InlineKeyboardButton(text=_("edit_button"), callback_data=f"edit_task_{task_id}")
+        complete_button = InlineKeyboardButton(text=_("complete_button"), callback_data=f"complete_task_{task_id}")
         inline_keyboard.append([task_button, edit_button, complete_button])
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
@@ -194,9 +207,7 @@ async def edit_task(callback_query: CallbackQuery, state: FSMContext):
 
     if task:
         await state.update_data(task_id=task_id)
-        await callback_query.message.answer(
-            _("current_task_name").format(task_name=task[0])
-        )
+        await callback_query.message.answer(_("current_task_name").format(task_name=task[0]))
         await state.set_state(TaskStates.waiting_for_task_edit)
     else:
         await callback_query.message.answer(_("task_not_found"))
@@ -211,7 +222,7 @@ async def save_edited_task(message: Message, state: FSMContext):
 
     await set_task_name(task_id, new_task_name)
     await message.answer(_("task_updated").format(task_name=new_task_name))
-    await state.clear()
+    await state.set_state(MainStates.main_state)
 
 
 # complete task - marks task as complete/incomplete and updates button status
@@ -221,7 +232,7 @@ async def complete_task(callback_query: CallbackQuery):
     task = await get_single_task(task_id)
 
     if task:
-        task_name, _, current_status = task
+        task_name, _desc, current_status = task
         new_status = 1 if current_status == 0 else 0
         await update_task_status(task_id, new_status)
         await callback_query.message.edit_reply_markup(reply_markup=None)
@@ -241,7 +252,7 @@ async def view_task(callback_query):
     task_id = callback_query.data.split("_")[2]
     task = await get_single_task(task_id)
     if task:
-        name, description, _ = task
+        name, description, _status = task
         await callback_query.message.answer(f"{name}\n{description}\n")
     else:
         await callback_query.message.answer(_("task_not_found"))
@@ -251,7 +262,7 @@ async def view_task(callback_query):
 # Notifications
 @dp.message(lambda message: message.text == _("add_notification_button"))
 async def init_add_notification(message: Message, state: FSMContext):
-    await state.clear()
+    await state.set_state(MainStates.main_state)
     await message.answer(_("send_notification_name"), reply_markup=cancel_markup)
     await state.set_state(NotificationStates.waiting_for_notification_name)
 
@@ -286,9 +297,7 @@ async def set_notification_time(message: Message, state: FSMContext):
     if message.text.lower() == _("preset_in_1_hour").lower():
         notification_time = (datetime.now() + timedelta(hours=1)).strftime("%H:%M")
         notification_date = (datetime.now() + timedelta(hours=1)).strftime("%d.%m.%Y")
-        await state.update_data(
-            notification_time=notification_time, notification_date=notification_date
-        )
+        await state.update_data(notification_time=notification_time, notification_date=notification_date)
         await insert_notification(
             message.from_user.id,
             data["notification_name"],
@@ -303,9 +312,9 @@ async def set_notification_time(message: Message, state: FSMContext):
             ),
             reply_markup=startMenu,
         )
-        await state.clear()
+        await state.set_state(MainStates.main_state)
     elif message.text.lower() == _("cancel_button").lower():
-        await state.clear()
+        await state.set_state(MainStates.main_state)
         await message.answer(_("cancelled"), reply_markup=startMenu)
     else:
         try:
@@ -335,7 +344,7 @@ async def set_notification_time(message: Message, state: FSMContext):
 @dp.message(NotificationStates.waiting_for_notification_date)
 async def set_notification_date(message: Message, state: FSMContext):
     if message.text.lower() == _("cancel_button").lower():
-        await state.clear()
+        await state.set_state(MainStates.main_state)
         await message.answer(_("cancelled"), reply_markup=startMenu)
         return
 
@@ -384,7 +393,7 @@ async def set_notification_date(message: Message, state: FSMContext):
         ),
         reply_markup=startMenu,
     )
-    await state.clear()
+    await state.set_state(MainStates.main_state)
 
 
 @dp.message(lambda message: message.text == _("show_notifications_button"))
@@ -399,9 +408,7 @@ async def show_notifications(message: Message):
     for notification in notifications:
         notification_id, name, date, time = notification
 
-        edit_button = InlineKeyboardButton(
-            text=_("edit_button"), callback_data=f"edit_notification_{notification_id}"
-        )
+        edit_button = InlineKeyboardButton(text=_("edit_button"), callback_data=f"edit_notification_{notification_id}")
         complete_button = InlineKeyboardButton(
             text=_("complete_button"),
             callback_data=f"complete_notification_{notification_id}",
@@ -426,9 +433,7 @@ async def view_notification(callback_query):
 
     if notification:
         name, date, time = notification
-        await callback_query.message.answer(
-            _("notification_details").format(name=name, date=date, time=time)
-        )
+        await callback_query.message.answer(_("notification_details").format(name=name, date=date, time=time))
     else:
         await callback_query.message.answer(_("notification_not_found"))
 
@@ -480,7 +485,7 @@ async def edit_notification(callback_query, state: FSMContext):
 @dp.message(NotificationStates.waiting_for_notification_edit_date)
 async def edit_notification_date(message: Message, state: FSMContext):
     if message.text.lower() == _("cancel_button").lower():
-        await state.clear()
+        await state.set_state(MainStates.main_state)
         await message.answer(_("cancelled"), reply_markup=startMenu)
         return
 
@@ -494,9 +499,7 @@ async def edit_notification_date(message: Message, state: FSMContext):
         notification_date = (now + timedelta(days=7)).strftime("%d.%m.%Y")
     else:
         try:
-            notification_date = datetime.strptime(message.text, "%d.%m").replace(
-                year=now.year
-            )
+            notification_date = datetime.strptime(message.text, "%d.%m").replace(year=now.year)
             if notification_date < now:
                 notification_date = notification_date.replace(year=now.year + 1)
             notification_date = notification_date.strftime("%d.%m.%Y")
@@ -526,7 +529,7 @@ async def edit_notification_date(message: Message, state: FSMContext):
 @dp.message(NotificationStates.waiting_for_notification_edit_time)
 async def edit_notification_time(message: Message, state: FSMContext):
     if message.text.lower() == _("cancel_button").lower():
-        await state.clear()
+        await state.set_state(MainStates.main_state)
         await message.answer(_("cancelled"), reply_markup=startMenu)
         return
 
@@ -538,22 +541,18 @@ async def edit_notification_time(message: Message, state: FSMContext):
         return
 
     data = await state.get_data()
-    await update_notification(
-        data["notification_id"], data["notification_date"], notification_time
-    )
+    await update_notification(data["notification_id"], data["notification_date"], notification_time)
 
     await message.answer(
-        _("notification_updated").format(
-            date=data["notification_date"], time=notification_time
-        ),
+        _("notification_updated").format(date=data["notification_date"], time=notification_time),
         reply_markup=startMenu,
     )
-    await state.clear()
+    await state.set_state(MainStates.main_state)
 
 
 @dp.callback_query(lambda c: c.data == "cancel_action")
 async def cancel_action(callback_query: CallbackQuery, state: FSMContext):
-    await state.clear()
+    await state.set_state(MainStates.main_state)
     await callback_query.message.answer(_("cancelled"), reply_markup=startMenu)
     await callback_query.answer()
 
