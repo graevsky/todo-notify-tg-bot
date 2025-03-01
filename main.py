@@ -1,11 +1,10 @@
 import asyncio
-import gettext
 import os
 import time
 from datetime import datetime, timedelta
 
 from aiogram import Bot, Dispatcher
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
@@ -130,7 +129,7 @@ async def init_add_task(message: Message, state: FSMContext):
 
 
 # KB complete
-@dp.message(Command("complete"), state=MainStates.main_state)
+@dp.message(Command("complete"), StateFilter(MainStates.main_state))
 async def kb_complete_task(message: Message):
     # Get task_id from command arguments
     try:
@@ -147,9 +146,10 @@ async def kb_complete_task(message: Message):
         await update_task_status(task_id, new_status)
         await message.edit_reply_markup(reply_markup=None)
         await message.answer(
-            f"Task '{task_name}' marked as {'completed' if new_status == 1 else 'incomplete'}."
+            f""""Task '{task_name}' marked as {'completed' if new_status == 1 
+                                               else 'incomplete'}."""
         )
-        
+
     else:
         await message.answer("Task not found.")
 
@@ -189,9 +189,15 @@ async def show_tasks(message: Message):
     inline_keyboard = []
     for task in tasks:
         task_id, task_name, task_description, status = task
-        task_button = InlineKeyboardButton(text=f"{task_name}", callback_data=f"view_task_{task_id}")
-        edit_button = InlineKeyboardButton(text="✏️ Edit", callback_data=f"edit_task_{task_id}")
-        complete_button = InlineKeyboardButton(text="✅ Complete", callback_data=f"complete_task_{task_id}")
+        task_button = InlineKeyboardButton(
+            text=f"{task_name}", callback_data=f"view_task_{task_id}"
+        )
+        edit_button = InlineKeyboardButton(
+            text="✏️ Edit", callback_data=f"edit_task_{task_id}"
+        )
+        complete_button = InlineKeyboardButton(
+            text="✅ Complete", callback_data=f"complete_task_{task_id}"
+        )
         inline_keyboard.append([task_button, edit_button, complete_button])
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
@@ -205,7 +211,9 @@ async def edit_task(callback_query: CallbackQuery, state: FSMContext):
 
     if task:
         await state.update_data(task_id=task_id)
-        await callback_query.message.answer(f"Current task name: {task[0]}\nPlease send a new task name.")
+        await callback_query.message.answer(
+            f"Current task name: {task[0]}\nPlease send a new task name."
+        )
         await state.set_state(TaskStates.waiting_for_task_edit)
     else:
         await callback_query.message.answer("Task not found.")
@@ -293,7 +301,9 @@ async def set_notification_time(message: Message, state: FSMContext):
     if message.text.lower() == "in 1 hour":
         notification_time = (datetime.now() + timedelta(hours=1)).strftime("%H:%M")
         notification_date = (datetime.now() + timedelta(hours=1)).strftime("%d.%m.%Y")
-        await state.update_data(notification_time=notification_time, notification_date=notification_date)
+        await state.update_data(
+            notification_time=notification_time, notification_date=notification_date
+        )
         await insert_notification(
             message.from_user.id,
             data["notification_name"],
@@ -334,6 +344,7 @@ async def set_notification_time(message: Message, state: FSMContext):
             await message.answer(
                 "Invalid time format. Please enter in HH:MM format or choose a preset."
             )
+
 
 @dp.message(NotificationStates.waiting_for_notification_date)
 async def set_notification_date(message: Message, state: FSMContext):
@@ -496,7 +507,9 @@ async def edit_notification_date(message: Message, state: FSMContext):
         notification_date = (now + timedelta(days=7)).strftime("%d.%m.%Y")
     else:
         try:
-            notification_date = datetime.strptime(message.text, "%d.%m").replace(year=now.year)
+            notification_date = datetime.strptime(message.text, "%d.%m").replace(
+                year=now.year
+            )
             if notification_date < now:
                 notification_date = notification_date.replace(year=now.year + 1)
             notification_date = notification_date.strftime("%d.%m.%Y")
@@ -536,12 +549,14 @@ async def edit_notification_time(message: Message, state: FSMContext):
         notification_time = time.strftime("%H:%M", time_object)
     except ValueError:
         await message.answer(
-                "Invalid time format. Please enter in HH:MM format or choose a preset."
-            )      
+            "Invalid time format. Please enter in HH:MM format or choose a preset."
+        )
         return
 
     data = await state.get_data()
-    await update_notification(data["notification_id"], data["notification_date"], notification_time)
+    await update_notification(
+        data["notification_id"], data["notification_date"], notification_time
+    )
 
     await message.answer(
         f"Notification updated to {data['notification_date']} at {notification_time}",

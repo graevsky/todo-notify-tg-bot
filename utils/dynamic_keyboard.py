@@ -1,6 +1,5 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from utils.db.db import get_user_settings
-import gettext
 
 
 async def generate_settings_menu(user_id):
