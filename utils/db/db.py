@@ -1,11 +1,11 @@
-import aiosqlite
 import asyncio
 import os
-from dotenv import load_dotenv
 from datetime import datetime
+
+import aiosqlite
 import pytz
 from cryptography.fernet import Fernet
-
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -248,7 +248,7 @@ async def get_notifications(user_id):
     async with aiosqlite.connect(DB_FILE) as db:
         notifications = await db.execute_fetchall(
             """SELECT id, notification_name, notification_date,
-            notification_time FROM notifications 
+            notification_time FROM notifications
             WHERE user_id = ? AND is_active = 1""",
             (user_id,),
         )

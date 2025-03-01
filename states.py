@@ -17,3 +17,7 @@ class NotificationStates(StatesGroup):
     waiting_for_notification_time = State()
     waiting_for_notification_edit_date = State()
     waiting_for_notification_edit_time = State()
+
+
+class MainStates(StatesGroup):
+    main_state = State()
