@@ -203,7 +203,9 @@ async def get_tasks(user_id):
 
 async def get_single_task(task_id):
     async with aiosqlite.connect(DB_FILE) as db:
-        async with db.execute("SELECT task, description, status FROM tasks WHERE id = ?", (task_id,)) as cursor:
+        async with db.execute(
+            "SELECT task, description, status FROM tasks WHERE id = ?", (task_id,)
+        ) as cursor:
             task = await cursor.fetchone()
         if task:
             return (
@@ -216,14 +218,18 @@ async def get_single_task(task_id):
 
 async def update_task_status(task_id, new_status):
     async with aiosqlite.connect(DB_FILE) as db:
-        await db.execute("UPDATE tasks SET status = ? WHERE id = ?", (new_status, task_id))
+        await db.execute(
+            "UPDATE tasks SET status = ? WHERE id = ?", (new_status, task_id)
+        )
         await db.commit()
 
 
 async def set_task_name(task_id, task_name):
     encrypted_task_name = encrypt_text(task_name)
     async with aiosqlite.connect(DB_FILE) as db:
-        await db.execute("UPDATE tasks SET task = ? WHERE id = ?", (encrypted_task_name, task_id))
+        await db.execute(
+            "UPDATE tasks SET task = ? WHERE id = ?", (encrypted_task_name, task_id)
+        )
         await db.commit()
 
 
@@ -273,7 +279,9 @@ async def get_single_notification(notification_id):
             return (decrypted_name, notification[1], notification[2])
 
 
-async def insert_notification(user_id, notification_name, notification_date, notification_time):
+async def insert_notification(
+    user_id, notification_name, notification_date, notification_time
+):
     encrypted_notification_name = encrypt_text(notification_name)
 
     async with aiosqlite.connect(DB_FILE) as db:
